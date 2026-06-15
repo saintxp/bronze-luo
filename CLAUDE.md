@@ -198,6 +198,62 @@ Each puzzle has an independent FSM: `IDLE → DRAGGING → NEAR → SNAPPED → 
 | 陆·隋唐 | Gold | Polychrome | Golden age spectrum |
 | 尾声 | Full spectrum | — | All colors converge |
 
+## InkView 水墨设计系统（已注入）
+
+来源: [qybaihe/inkview](https://github.com/qybaihe/inkview) — 现代中式水墨风设计系统
+
+所有 HTML/CSS 界面遵循 InkView 设计语言，避开 AI 千篇一律的现代风。
+
+### Core CSS Tokens（全局可用）
+
+```css
+:root {
+  --ink-bg: #f6f1e6;              /* 暖米背景 */
+  --ink-paper: #fffaf0;            /* 宣纸色 */
+  --ink-paper-deep: #eee3d0;       /* 深纸色 */
+  --ink-text: #201c18;             /* 深棕黑主文字 */
+  --ink-muted: #6f675d;            /* 弱化文字 */
+  --ink-line: #2a2723;             /* 干笔墨线 */
+  --ink-wash: rgba(32,28,24,0.08); /* 水墨晕染 */
+  --ink-cinnabar: #b64232;         /* 朱砂红 — 印章/强调 */
+  --ink-indigo: #2f536f;           /* 靛蓝 — 辅助 */
+  --ink-jade: #5c7f67;             /* 玉色 — 辅助 */
+  --ink-ochre: #b78642;            /* 赭石 */
+  --ink-gold: #c8a65a;             /* 金色 */
+}
+```
+
+### 青铜器色板扩展（项目专用）
+
+在 InkView 基础上扩展青铜时代色板，与游戏各章节对应：
+
+```css
+:root {
+  --bronze-copper: #B87333;        /* 古铜 — 序章/二里头 */
+  --bronze-green: #5D7A5E;         /* 铜绿 — 周王城 */
+  --bronze-rust: #A65D2C;          /* 锈橙 — 曹魏烬城 */
+  --bronze-vermillion: #C23B22;    /* 朱红 — 东汉 */
+  --bronze-cinnabar: #E05A3A;      /* 银朱 — 北魏 */
+  --bronze-gold: #D4A843;          /* 隋唐金 */
+  --bronze-turquoise: #4A9B9B;     /* 松石 — 二里头矿 */
+  --bronze-ash: #8B8070;           /* 灰烬 — 曹魏 */
+  --bronze-ink: #1A1A18;           /* 墨黑 — 通用 */
+  --bronze-ritual-white: #F5F0E8;  /* 礼白 — 周 */
+  --bronze-lime-white: #F0EDE0;    /* 石灰白 — 北魏 */
+}
+```
+
+### 设计规则
+
+1. **暖宣纸底**（`--ink-bg` / `--ink-paper`）作为所有 UI 界面背景，禁用纯白
+2. **朱砂红**（`--ink-cinnabar`）仅用于印章、关键交互反馈、收藏标记
+3. **金色**（`--ink-gold` / `--bronze-gold`）用于隋唐章，其他章节慎用
+4. **青铜色**按章节映射：每个章节的 UI 主色取 Palette per Chapter 中对应色值
+5. **禁止**：红金宫廷风、脏旧纸纹理、装饰性书法字体、仙侠游戏 UI 元素
+6. **水墨晕染**（`--ink-wash`）用于弹窗遮罩、过渡背景，禁用纯黑半透明
+7. **Canvas 游戏内 UI**（如 StampEffect、DefinitionPopup、TutorialOverlay）遵循同一套色板，取 `--ink-*` 和 `--bronze-*` 变量映射
+8. **图标**优先用 InkView 的 176 个透明 PNG 图标库（`assets/ink-common-icons/`），不足再自行绘制
+
 ### 18 Characters (all "侧写不告" — no faces, no names, ≥2 visual clues each)
 
 | Character | Clue 1 | Clue 2 | Clue 3 | Chapter |

@@ -11,13 +11,10 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "isolatedModules": true,
-    "outDir": "dist",
+    "noEmit": true,
     "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]
