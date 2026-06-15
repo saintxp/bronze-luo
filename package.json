@@ -1,0 +1,19 @@
+{
+  "name": "bronze-luo",
+  "private": true,
+  "version": "0.0.1",
+  "description": "铜声·识洛 — A Gorogoa-like 2D tile-puzzle indie game",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "~5.7",
+    "vite": "^6.4.3",
+    "vitest": "^3.2.6"
+  }
+}
