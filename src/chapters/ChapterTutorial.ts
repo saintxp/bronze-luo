@@ -76,10 +76,11 @@ export class ChapterTutorial extends ChapterBase {
       targetRect: { x: 0, y: 0, w: 10, h: 10 }, // dummy — overridden
     });
 
-    // L3: gear rotation
+    // L3: gear rotation — start at half-tooth offset so gears aren't pre-aligned
     const l3 = new RotationPuzzle({
       id: 'tut-l3',
       chapterId: 'tutorial',
+      startAngle: Math.PI / 8,
     });
 
     this.puzzles = [l1, l2, l3];
@@ -207,24 +208,39 @@ export class ChapterTutorial extends ChapterBase {
   /* ───────── L3: Gear rotation ───────── */
 
   private setupL3(): void {
-    this.l3Angle = 0;
+    this.l3Angle = Math.PI / 8; // half-tooth offset — not at any snap angle
     this.currentPuzzleIndex = 2;
 
     // Clear any leaked callback from previous levels
     this.dragHandler.onDragEnd(() => {});
 
     this.dragHandler.setMode('layer');
+
+    let dragFrame = 0; // skip first frame so it doesn't instantly solve
+
     this.dragHandler.onDrag((state) => {
+      dragFrame++;
+
       // Arc-drag: compute angle from center of movable gear
       const dx = state.currentPos.x - this.l3MovableCenter.x;
       const dy = state.currentPos.y - this.l3MovableCenter.y;
-      this.l3Angle = Math.atan2(dy, dx);
+      const rawAngle = Math.atan2(dy, dx);
 
-      const puzzle = this.puzzles[2] as RotationPuzzle;
-      puzzle.checkAlignment({ angle: this.l3Angle });
+      // Only update angle & check alignment after the first drag frame,
+      // so the user actually rotates the gear before it can solve
+      if (dragFrame > 1) {
+        this.l3Angle = rawAngle;
 
-      if (puzzle.state === PuzzleState.SOLVED) {
-        this.overlay.hide();
+        const puzzle = this.puzzles[2] as RotationPuzzle;
+        puzzle.checkAlignment({ angle: rawAngle });
+
+        if (puzzle.state === PuzzleState.SOLVED) {
+          this.overlay.hide();
+        }
+      } else {
+        // First frame: store the angle but don't check alignment yet,
+        // to prevent "drag from the right = angle 0 = snap angle 0 = instant solve"
+        this.l3Angle = rawAngle;
       }
     });
   }
