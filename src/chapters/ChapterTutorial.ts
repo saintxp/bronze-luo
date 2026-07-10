@@ -264,6 +264,10 @@ export class ChapterTutorial extends ChapterBase {
       case 'tut-l3':
         gameState.isTutorialComplete = true;
         log.info('Tutorial complete! All 3 levels solved.');
+        // Brief delay so player sees completion text before chapter transition
+        setTimeout(() => {
+          this.advanceToNextPuzzle(); // triggers chapter:complete (last puzzle)
+        }, 1500);
         break;
     }
   }

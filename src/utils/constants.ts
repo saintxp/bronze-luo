@@ -30,6 +30,10 @@ export const ANIM_TRANSITION_DURATION = 800; // ms — scene transition
 export const ANIM_FADE_DURATION = 300; // ms — fade in/out
 export const DEFAULT_FRAME_RATE = 60; // fps
 
+/* ───────── UI ───────── */
+export const POPUP_DISPLAY_DURATION = 2000; // ms — definition popup visible time
+export const STAMP_SIZE = 60; // px — stamp square size
+
 /* ───────── Tutorial Constants ───────── */
 export const TUTORIAL_L1_DOOR_W = 180;
 export const TUTORIAL_L1_DOOR_H = 360;

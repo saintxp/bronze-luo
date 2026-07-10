@@ -16,16 +16,16 @@
 ## 开发进度
 
 ```
-最新提交: daf2f39 — feat: 完成核心引擎和基础架构
-当前阶段: Phase 1 — 引擎核心 + 教学关开发中   ← 你在这里
-下一阶段: Phase 2 — 序章 → 周王城 MVP
+最新提交: a7a62db — fix: L3 rotation puzzle auto-solve (Phase 2 WIP)
+当前阶段: Phase 2 — 序章 → 周王城 MVP   ← 你在这里
+下一阶段: Phase 3 — 东汉 → 曹魏
 ```
 
 | 阶段 | 内容 | 工时 | 里程碑 |
 |---|---|---|---|
 | ✅ Phase 0 | 设计文档 + 项目脚手架 | — | 18 份设计文档就绪 |
-| 🔄 **Phase 1** | **引擎核心 + 教学关 L1-L3** | ~40h | M1: 3 教学关可玩 |
-| ⬜ Phase 2 | 序章 → 周王城 MVP | ~45h | M2: ~30min 体验 |
+| ✅ Phase 1 | 引擎核心 + 教学关 L1-L3 | ~40h | M1: 3 教学关可玩 |
+| 🔄 **Phase 2** | **序章 → 周王城 MVP** | ~45h | M2: ~30min 体验 |
 | ⬜ Phase 3 | 东汉 → 曹魏 | ~30h | M3: ~45min 体验 |
 | ⬜ Phase 4 | 北魏 → 隋唐 → 尾声 | ~35h | M4: 完整 ~90min |
 | ⬜ Phase 5 | 打磨 + 测试 + 发布 | ~25h | M5: 发布候选 |
@@ -51,6 +51,10 @@
 ├── 资产/                            # 📄 资产清单
 │   └── 资产清单_v2_0.md             # — 235 图 + 16 视频 + 14 音效
 │
+├── 资产/                            # 📄 资产清单 + 🎨 Phase 2 提示词
+│   ├── 资产清单_v2_0.md             # — 235 图 + 16 视频 + 14 音效
+│   └── Phase2_Seedream提示词_v1.md  # — 序章→周王城 AI 绘图提示词
+│
 ├── 代码/                            # 📄 代码计划
 │   └── 代码编写计划_v2_0.md          # — Canvas+TS 技术架构
 │
@@ -65,19 +69,32 @@
     ├── puzzle/                     # 谜题层
     │   ├── PuzzleBase.ts           #   抽象谜题接口
     │   ├── AlignmentPuzzle.ts      #   拖拽对齐谜题
+    │   ├── NestPuzzle.ts           #   嵌套对齐谜题（L2→灰页）
     │   └── RotationPuzzle.ts       #   旋转匹配谜题
     ├── chapters/                   # 章节层
     │   ├── ChapterBase.ts          #   章节基类
-    │   └── ChapterTutorial.ts      #   教学关
+    │   ├── ChapterPrologue.ts      #   序章（封面/封背/翻页）
+    │   ├── ChapterErlitou.ts       #   壹·二里头（陶范合拢）
+    │   ├── ChapterGrey.ts          #   灰页·悬置商（裂缝嵌套）
+    │   ├── ChapterZhou.ts          #   贰·周王城（孔老圆心/礼成/问道）
+    │   ├── ChapterTutorial.ts      #   教学关 L1-L3
+    │   └── ChapterDemoEnd.ts       #   演示结束画面
+    ├── audio/                      # 音频层
+    │   ├── AudioManager.ts         #   Web Audio API 封装
+    │   └── BronzeSound.ts          #   11 青铜音触发
     ├── state/                      # 状态层
     │   └── GameState.ts            #   全局状态 + 事件总线
     ├── assets/                     # 资产层
     │   ├── AssetManifest.ts        #   资产路径映射
-    │   └── AssetLoader.ts          #   预加载 + 懒加载
+    │   ├── AssetLoader.ts          #   预加载 + 懒加载
+    │   └── VideoTrigger.ts         #   Seedance 视频触发
     ├── ui/                         # UI 层
-    │   └── TutorialOverlay.ts      #   教学引导覆盖层
+    │   ├── TutorialOverlay.ts      #   教学引导覆盖层
+    │   ├── StampEffect.ts          #   印章动画
+    │   └── DefinitionPopup.ts      #   ≤4 字释义弹窗
     ├── tests/                      # 测试
-    │   └── alignment.test.ts       #   拼合对准测试
+    │   ├── alignment.test.ts       #   拼合对准测试
+    │   └── nest.test.ts            #   嵌套谜题测试
     └── utils/                      # 工具
         ├── math.ts                 #   向量/碰撞/吸附数学
         ├── easing.ts               #   缓动函数

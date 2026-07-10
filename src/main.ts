@@ -1,57 +1,164 @@
 /**
  * 铜声·识洛 — Game bootstrap
  *
- * Phase 1: Tutorial demo (L1-L3 playable in browser).
- * Initializes CanvasManager → DragHandler → ChapterTutorial → game loop.
+ * Phase 2: ChapterManager drives the flow:
+ *   tutorial → prologue → erlitou → grey → zhou
+ * Chapters are added incrementally as they are implemented.
+ *
+ * Global singletons (CanvasManager, DragHandler, AudioManager,
+ * StampEffect, DefinitionPopup, VideoTrigger) are created here
+ * and shared across chapters.
  */
 
 import { CanvasManager } from './engine/CanvasManager';
 import { DragHandler } from './engine/DragHandler';
 import { ChapterTutorial } from './chapters/ChapterTutorial';
+import { ChapterPrologue } from './chapters/ChapterPrologue';
+import { ChapterErlitou } from './chapters/ChapterErlitou';
+import { ChapterGrey } from './chapters/ChapterGrey';
+import { ChapterZhou } from './chapters/ChapterZhou';
+import { ChapterDemoEnd } from './chapters/ChapterDemoEnd';
+import { ChapterBase } from './chapters/ChapterBase';
+import { initBronzeSounds } from './audio/BronzeSound';
+import { StampEffect } from './ui/StampEffect';
+import { DefinitionPopup } from './ui/DefinitionPopup';
+import { VideoTrigger } from './assets/VideoTrigger';
+import { gameState } from './state/GameState';
+import { eventBus } from './utils/EventBus';
 import { createLogger, setLogLevel } from './utils/logger';
 
 const log = createLogger('main');
 
-function init(): void {
-  log.info('铜声·识洛 — Phase 1 Demo starting...');
+/* ───────── ChapterManager ───────── */
 
-  // Set log level (debug in dev, error in production)
+/**
+ * Manages an ordered list of chapters.
+ * Listens for 'chapter:complete' events to auto-advance.
+ * Each chapter goes through: init() → enter() → update() loop → exit()
+ */
+class ChapterManager {
+  private chapters: ChapterBase[];
+  private currentIndex = -1;
+  private canvasManager: CanvasManager;
+
+  constructor(chapters: ChapterBase[], canvasManager: CanvasManager) {
+    this.chapters = chapters;
+    this.canvasManager = canvasManager;
+
+    eventBus.on('chapter:complete', () => {
+      log.info('Chapter complete event — advancing to next');
+      this.nextChapter();
+    });
+  }
+
+  get currentChapter(): ChapterBase | null {
+    if (this.currentIndex >= 0 && this.currentIndex < this.chapters.length) {
+      return this.chapters[this.currentIndex];
+    }
+    return null;
+  }
+
+  start(): void {
+    this.goToChapter(0);
+  }
+
+  nextChapter(): void {
+    this.goToChapter(this.currentIndex + 1);
+  }
+
+  private goToChapter(index: number): void {
+    // Exit current chapter
+    if (this.currentIndex >= 0 && this.currentIndex < this.chapters.length) {
+      this.chapters[this.currentIndex].exit();
+    }
+
+    if (index >= this.chapters.length) {
+      log.info('All chapters complete — end of demo');
+      this.currentIndex = -1;
+      return;
+    }
+
+    this.currentIndex = index;
+    this.canvasManager.clearAll();
+
+    const chapter = this.chapters[index];
+    // Set GameState chapter before init so registerPuzzle() works
+    gameState.enterChapter(chapter.id);
+    chapter.init();
+    chapter.enter();
+
+    log.info(`Switched to chapter: ${chapter.id} (${index + 1}/${this.chapters.length})`);
+  }
+
+  update(dt: number): void {
+    const ch = this.currentChapter;
+    if (ch) {
+      ch.update(dt);
+    }
+  }
+}
+
+/* ───────── Initialization ───────── */
+
+function init(): void {
+  log.info('铜声·识洛 — Phase 2 starting...');
   setLogLevel('debug');
 
-  // 1. Create canvas manager (5 layers)
+  // 1. Canvas manager (5 layers)
   const canvasManager = new CanvasManager();
   canvasManager.init('app');
 
-  // 2. Create drag handler
+  // 2. Drag handler
   const dragHandler = new DragHandler();
 
-  // 3. Create tutorial chapter
-  const tutorial = new ChapterTutorial(canvasManager, dragHandler);
-  tutorial.init();
-  tutorial.enter();
+  // 3. Audio
+  initBronzeSounds();
 
-  // 4. Game loop
+  // 4. UI overlays
+  const stampEffect = new StampEffect(canvasManager);
+  const definitionPopup = new DefinitionPopup(canvasManager);
+  const videoTrigger = new VideoTrigger(canvasManager);
+
+  // 5. Chapters (expand incrementally as Steps 3-6 add each chapter)
+  const chapters: ChapterBase[] = [
+    new ChapterTutorial(canvasManager, dragHandler),
+    new ChapterPrologue(canvasManager, dragHandler),
+    new ChapterErlitou(canvasManager, dragHandler, stampEffect),
+    new ChapterGrey(canvasManager, dragHandler),
+    new ChapterZhou(canvasManager, dragHandler, stampEffect),
+    new ChapterDemoEnd(canvasManager),
+  ];
+
+  // 6. Chapter manager
+  const chapterManager = new ChapterManager(chapters, canvasManager);
+  chapterManager.start();
+
+  // 7. Game loop
   let lastTime = performance.now();
 
   function gameLoop(now: number): void {
     const dt = now - lastTime;
     lastTime = now;
 
-    // Update chapter logic (renders current level)
-    tutorial.update(dt);
+    // Update current chapter (renders BG, Puzzle, VFX layers)
+    chapterManager.update(dt);
+
+    // Render UI layer overlays
+    stampEffect.render(now);
+    definitionPopup.render(now);
+    videoTrigger.render(now);
 
     requestAnimationFrame(gameLoop);
   }
 
   requestAnimationFrame(gameLoop);
 
-  // 5. Handle resize
+  // 8. Handle resize
   window.addEventListener('resize', () => {
     canvasManager.resize();
   });
 
-  // 6. Log readiness
-  log.info('Phase 1 Demo ready — tutorial running');
+  log.info('Phase 2 ready — waiting for chapters');
 }
 
 // Boot when DOM is ready
