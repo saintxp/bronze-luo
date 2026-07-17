@@ -12,6 +12,10 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "gsap": "^3.15.0",
+    "liquid-glass-canvas": "^0.1.0",
+    "proton-engine": "^7.1.5",
+    "stage-js": "^1.0.2",
     "typescript": "~5.7",
     "vite": "^6.4.3",
     "vitest": "^3.2.7"
