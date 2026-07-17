@@ -13,7 +13,9 @@ Gorogoa-like 2D 拼图独立游戏，HTML5 Canvas + TypeScript + Vite。5 层 Ca
 ### 当前最新提交
 
 ```
-ec0fc88 docs: update README with Phase 2 progress and project metrics
+7713d7d test: 新增 InkPaintingUtils + GSAP 映射单元测试
+eae39df feat: VFX 粒子系统集成 (Proton 7.1.5)
+ca22851 feat: InkPainting 移植 + GSAP 动画集成 + 色彩常量
 ```
 
 ### 构建验证
@@ -22,129 +24,85 @@ ec0fc88 docs: update README with Phase 2 progress and project metrics
 cd "E:/projects/铜声·识洛"
 npm install --include=dev    # ⚠️ npm 11 必须加 --include=dev
 npx tsc --noEmit             # 应输出零错误
-npx vitest run               # 应输出 26/26 通过
+npx vitest run               # 应输出 34/34 通过 (原 26 + 新 8)
 ```
-
-### 工作区状态
-
-有大量未提交改动（10 文件, ±3569/3047 行），主要是章节文件 + 引擎代码的 LF→CRLF 行尾转换（Windows）。
-
-```
- M index.html
- M package.json          ← 加了 gsap/proton-engine/stage-js/liquid-glass-canvas
- M package-lock.json
- M src/chapters/ChapterDemoEnd.ts
- M src/chapters/ChapterGrey.ts
- M src/chapters/ChapterPrologue.ts
- M src/chapters/ChapterZhou.ts
- M src/engine/DragHandler.ts
- M src/main.ts
- M src/utils/EventBus.ts
-?? .pi/                  ← 新装 Design Skill
-```
-
-建议先 `git stash` 或 `git add -A && git commit -m "chore: lint fixups + new deps"` 清空工作区。
 
 ---
 
-## 本会话新安装的 6 个工具
+## 本会话完成的 3 条主线
 
-| # | 工具 | 用途 | 安装方式 |
-| :--: | ------ | ------ | ---------- |
-| 1 | **proton-engine** ^7.1.5 | 粒子引擎（铜液飞溅/灰烬飘落/花瓣） | `npm i --save-dev` |
-| 2 | **gsap** ^3.15.0 | 动画引擎（盖章回弹/翻页过渡/弹窗） | `npm i --save-dev` |
-| 3 | **stage-js** ^1.0.2 | Canvas UI 组件化（替代过程化 ctx.fillRect） | `npm i --save-dev` |
-| 4 | **liquid-glass-canvas** ^0.1.0 | WebGL 玻璃折射（灰页光晕/水面倒影/铜镜） | `npm i --save-dev` |
-| 5 | **Design Skill** | UI 方向锁定 + 截图审查（HTML 页面设计） | 复制到 `.pi/skills/design/` |
-| 6 | **InkPainting** | 水墨印章/纸纹源码参考（MIT） | `git clone` 备用 |
+### ✅ 1. InkPainting 移植 → 印章/竖排/纸纹
 
-### 新增资产文档
+**已完成：**
 
 | 文件 | 内容 |
-| ------ | ------ |
-| `资产/Seedream_Seedance_提示词手册.md` | 全章节 Seedream/Seedance 提示词 |
-| `资产/AI资产构图规范.md` | 配对件生成约束（先母图再裁切） |
-| `资产/资产清单_v2_0.md` | 已有，全量 235 张图 + 16 段视频 |
-| `资产/Phase2_Seedream提示词_v1.md` | 已有 |
+| --- | --- |
+| `src/ui/InkPaintingUtils.ts` | 🆕 从 InkPainting (MIT) 移植的核心模块 |
+| `src/ui/StampEffect.ts` | 改用朱砂印章渲染（阴刻/阳刻 + multiply 混合 + 边缘磨损） |
+| `src/ui/DefinitionPopup.ts` | 新增竖排文字模式 (`layout: 'vertical'`) |
 
-### 新增引擎代码
+**移植的功能：**
 
-| 文件 | 内容 |
-| ------ | ------ |
-| `src/engine/ImageRenderer.ts` | 图片绘制工具（cover/contain/sliced + 缺图占位） |
-| `src/assets/AssetLoader.ts` | 重写为章节级懒加载 + 失败缓存 |
-| `src/assets/AssetManifest.ts` | 扩展为全章节资产路径 + 视频路径 |
+- `renderSeal(config)` — 朱砂印章渲染（阴刻/阳刻 + 轮廓变形 + 边缘破损 + 磨损纹理）
+- `drawSealImpression(ctx, seal, x, y)` — multiply 混合绘制印章印迹
+- `generatePaperTexture(config)` — 宣纸纹理（晕染 + 颗粒 + 纤维 + 暗角）
+- `drawVerticalText(ctx, x, y, config)` — 竖排题词（从右到左，带手写抖动）
+- `makeSeededRng(id)` — 确定性种子随机数（保证纹理一致性）
+
+### ✅ 2. GSAP 动画集成
+
+**已完成：**
+
+`src/engine/AnimationEngine.ts` 内部切换为 GSAP，保持原有 Tween/KeyframeSequence API 不变。
+
+新增 GSAP 方法：
+
+- `animateTo(target, vars)` — 多属性同时动画
+- `animateFrom(target, vars)` — 从指定值动画到当前值
+- `animateTimeline(buildFn)` — 时间线序列动画
+- `toGsapEase(name)` — 游戏缓动名 → GSAP ease 字符串映射
+
+### ✅ 3. Proton 粒子系统
+
+**已完成：**
+
+`src/engine/VFXParticleManager.ts` — 🆕 5 种青铜色粒子效果：
+
+| ID | 效果 | 使用场景 | 颜色 |
+| --- | --- | --- | --- |
+| `copperSplash` | 铜液飞溅 | 序章 + 二里头 | BRONZE.copper → gold |
+| `bellSoundwave` | 编钟声波 | 周·礼成 | BRONZE.green → ritualWhite |
+| `towerEmbers` | 塔焚火星 | 北魏·烬 | BRONZE.vermillion → rust |
+| `mirrorShards` | 镜碎碎片 | 唐·千秋镜 | BRONZE.cinnabar → limeWhite |
+| `peonyPetals` | 牡丹花瓣 | 唐·归田 | BRONZE.cinnabar → gold |
+
+用法：
+
+```typescript
+const particles = new VFXParticleManager(vfxCanvas);
+particles.trigger('copperSplash', 960, 540);
+```
+
+### ✅ 其他
+
+| 改动 | 文件 |
+| --- | --- |
+| 色彩常量 | `constants.ts`: `CHAPTER_PALETTE` (9章) + `INK` (InkView) + `BRONZE` (青铜色板) |
+| 单元测试 | `src/tests/inkpainting.test.ts`: makeSeededRng + toGsapEase (8 tests) |
+| 工作区清理 | 未提交改动已 commit |
 
 ---
 
-## 代码优化：三条主线（按优先级）
+## 已安装的 6 个工具
 
-### 1. 移植 InkPainting 印章代码 → StampEffect.ts（最高优先级）
-
-**目标：** 把游戏里盖章动画从三角色块改成真正的朱砂印章效果。
-
-**源码位置（需先 clone）：**
-
-```bash
-git clone https://github.com/TanShilongMario/InkPainting.git /tmp/inkpainting
-```
-
-**移植模块：**
-
-- **印章渲染**（阴刻/阳刻 + 朱砂叠底）→ 替换 `src/ui/StampEffect.ts` 的 `drawStamp()`
-- **竖排题词**（Canvas 竖排文字排版）→ 替换 `src/ui/DefinitionPopup.ts` 的文本渲染
-- **宣纸纹理**（4 种纸纹理 + 纤维肌理）→ 用于 UI Canvas 背景
-
-InkPainting 核心代码在 `app.js`（~2600 行），MIT 协议，直接移植。
-
-### 2. 集成 GSAP 替代 AnimationEngine（中优先级）
-
-**目标：** 让盖章回弹、翻页过渡、弹窗出入有精细的缓动曲线。
-
-```typescript
-// 示例：盖章动画
-import gsap from 'gsap';
-
-// 当前 AnimationEngine 只有基础 tween
-// 用 GSAP 替换后可以做到：
-gsap.fromTo(stamp, 
-  { scale: 0, rotation: -15 },
-  { scale: 1.2, rotation: 0, duration: 0.3, ease: 'back.out(1.7)',
-    onComplete: () => gsap.to(stamp, { scale: 1, duration: 0.15, ease: 'power2.out' }) }
-);
-```
-
-涉及文件：`src/engine/AnimationEngine.ts`（可保留接口，内部切换为 GSAP）。
-
-### 3. 用 Proton 实现 Tier3 VFX（中优先级）
-
-**目标：** 替代手写的粒子效果。
-
-```typescript
-import Proton from 'proton-engine';
-
-// 示例：铜液飞溅粒子
-const proton = new Proton();
-const emitter = new Proton.Emitter();
-emitter.rate = new Proton.Rate(new Proton.Span(5, 15), 0.05);
-emitter.addInitialize(new Proton.Mass(1));
-emitter.addInitialize(new Proton.Radius(2, 8));
-emitter.addInitialize(new Proton.Life(1, 2));
-emitter.addInitialize(new Proton.Velocity(new Proton.Span(2, 5), 
-  new Proton.Span(0, 360), 'polar'));
-emitter.addBehaviour(new Proton.Gravity(0.5));
-emitter.addBehaviour(new Proton.Color('#D4A843', '#B87333'));
-emitter.p.x = canvas.width / 2;
-emitter.p.y = canvas.height / 2;
-emitter.emit();
-```
-
-用 Proton 覆盖的场景：
-
-- 二里头：铜液飞溅（`ChapterErlitou.ts`）
-- 曹魏·烬城：灰烬飘落（`ChapterCaoWei.ts`）
-- 北魏·烬：烟雾向塔檐流动（`ChapterWei.ts`）
-- 归田：牡丹花瓣飘散（`ChapterTang.ts`）
+| # | 工具 | 状态 | 用途 |
+| :--: | ------ | :--: | ------ |
+| 1 | **proton-engine** ^7.1.5 | ✅ 已集成 | 粒子引擎（VFXParticleManager） |
+| 2 | **gsap** ^3.15.0 | ✅ 已集成 | 动画引擎（AnimationEngine） |
+| 3 | **stage-js** ^1.0.2 | ⏳ 未使用 | Canvas UI 组件化（可做 HUD/菜单） |
+| 4 | **liquid-glass-canvas** ^0.1.0 | ⏳ 未使用 | WebGL 玻璃折射（灰页光晕/水面） |
+| 5 | **Design Skill** | ✅ 可用 | UI 方向锁定 + 截图审查 |
+| 6 | **InkPainting** | ✅ 已移植 | 源码已获取并移植，不再需要 clone |
 
 ---
 
@@ -158,21 +116,15 @@ src/
 │   ├── LayerRenderer.ts    # 层渲染 API
 │   ├── DragHandler.ts      # 拖拽交互（鼠标+触屏）
 │   ├── HitDetector.ts      # 碰撞/吸附检测
-│   ├── AnimationEngine.ts  # Tween + 关键帧（待替换为 GSAP）
-│   └── ImageRenderer.ts    # 🆕 图片绘制工具
+│   ├── AnimationEngine.ts  # ✨ Tween + GSAP 双引擎
+│   ├── ImageRenderer.ts    # 图片绘制工具
+│   └── VFXParticleManager.ts  # 🆕 Proton 粒子管理
 ├── puzzle/
 │   ├── PuzzleBase.ts       # 抽象拼图接口
 │   ├── AlignmentPuzzle.ts  # 拖拽对位（90% 拼图）
 │   ├── NestPuzzle.ts       # 嵌套层对位（灰页用）
 │   └── RotationPuzzle.ts   # 旋转匹配（瘦骨用）
-├── chapters/
-│   ├── ChapterBase.ts      # 章节基类
-│   ├── ChapterTutorial.ts  # 教学关 L1-L3
-│   ├── ChapterPrologue.ts  # 序章
-│   ├── ChapterErlitou.ts   # 壹·二里头
-│   ├── ChapterGrey.ts      # 灰页
-│   ├── ChapterZhou.ts      # 贰·周王城
-│   └── ChapterDemoEnd.ts   # Demo 结束
+├── chapters/               # 章节实现
 ├── assets/
 │   ├── AssetManifest.ts    # 资产路径清单（120+ 条）
 │   ├── AssetLoader.ts      # 章节级懒加载
@@ -181,67 +133,60 @@ src/
 │   ├── AudioManager.ts     # Web Audio API 封装
 │   └── BronzeSound.ts      # 11 种铜声触发
 ├── ui/
-│   ├── StampEffect.ts      # 盖章动画（待移植 InkPainting 朱砂印章代码）
-│   ├── DefinitionPopup.ts  # ≤4 字释义弹窗（待移植竖排题词）
+│   ├── StampEffect.ts      # ✨ 朱砂印章（InkPainting 移植）
+│   ├── DefinitionPopup.ts  # ✨ 释义弹窗（含竖排模式）
+│   ├── InkPaintingUtils.ts # 🆕 印章/纸纹/竖排文字工具
 │   ├── MapOverlay.ts       # 洛阳古地图
 │   └── TutorialOverlay.ts  # 教程引导
-├── state/
-│   ├── GameState.ts        # 全局状态
-│   ├── StampState.ts       # 盖章追踪（9 章）
-│   ├── ChapterFSM.ts       # 章间/章内 FSM
-│   └── SaveManager.ts      # localStorage 存档
+├── state/                  # 游戏状态管理
+├── tests/                  # ✨ 34 tests (alignment + nest + inkpainting)
 └── utils/
     ├── math.ts             # 向量/碰撞/吸附数学
     ├── easing.ts           # 缓动函数
-    ├── constants.ts        # 🆕 建议添加 CHAPTER_PALETTE 常量
+    ├── constants.ts        # ✨ CHAPTER_PALETTE + INK + BRONZE
     ├── EventBus.ts         # 事件总线
     └── logger.ts           # 调试日志
 ```
 
 ---
 
-## 下一步任务清单（可直接开始）
+## 下一步任务清单
 
-### 🥇 立即可做（不依赖外部工具）
+### 🥇 Phase 2 核心开发
 
-1. **添加章节色板常量到 `constants.ts`**
-   - 见 `资产/Seedream_Seedance_提示词手册.md` 的色彩体系表
-   - 定义 `CHAPTER_PALETTE` 对象，供章节 `render()` 方法引用
+1. **教学关 L1-L3 可玩化**
+   - 用 `ImageRenderer` + 占位图渲染教学关背景
+   - 在 `ChapterTutorial.ts` 中接入 `AlignmentPuzzle` + `NestPuzzle` + `RotationPuzzle`
+   - 添加 `TutorialOverlay` 引导提示
+   - 目标：3 个教学关可在浏览器中完整游玩
 
-2. **清理工作区**
+2. **序章 → 周王城 MVP**
+   - 序章：合册动画 + 地图入口
+   - 二里头：陶范合拢谜题 + `copperSplash` 粒子
+   - 周王城：孔老圆心对位 + `bellSoundwave` 粒子
+   - 目标：~30 分钟可玩体验
 
-   ```bash
-   git add -A && git commit -m "chore: add Proton/GSAP/Stage/LiquidGlass deps + Design Skill"
-   ```
+### 🥈 视觉增强
 
-3. **npm 安装命令记住**
+1. **集成 liquid-glass-canvas**
+   - 灰页光晕效果（WebGL 玻璃折射）
+   - 水面倒影（东汉·纸成）
+   - 铜镜反射（北魏·衣归）
 
-   ```bash
-   npm install --include=dev    # ⚠️ 这台机器的 npm 11 必须加 --include=dev
-   # 如果单包安装毁了 node_modules，用：
-   rm -rf node_modules package-lock.json && npm install --include=dev
-   ```
+2. **集成 stage-js**
+   - HUD 组件化（暂停菜单、设置面板）
+   - 替代过程化 ctx.fillRect
 
-### 🥈 需要先 clone InkPainting
+3. **宣纸纹理应用到 UI Canvas**
+   - 使用 `generatePaperTexture()` 作为 UI 背景
+   - 章节切换时的纸纹过渡
 
-1. **从 InkPainting 移植印章 + 纸纹代码**
-   - Clone 到 `/tmp/inkpainting`
-   - 提取 `app.js` 中印章渲染、竖排题词、宣纸纹理模块
-   - 移植到 `src/ui/StampEffect.ts` 和 `src/ui/DefinitionPopup.ts`
-
-2. **集成 GSAP**
-   - 在 `AnimationEngine.ts` 中引入 GSAP 作为底层实现
-   - 保持现有 `play(frame, duration)` 接口不变
-
-3. **集成 Proton**
-   - 在 VFX Canvas 层添加粒子系统
-   - 先在 `ChapterErlitou.ts` 的铜液溅射场景试水
-
-### 🥉 设计文档参考
+### 🥉 资产生成
 
 1. **生成 Seedream 资产**
    - 按 `资产/AI资产构图规范.md` 先母图再裁切
-   - 从教学关 L1-L3 开始验证流程
+   - 从教学关 L1-L3 占位图开始
+   - 优先 P0 谜题的配对件
 
 ---
 
