@@ -1,10 +1,12 @@
 /**
- * 铜声·识洛 — Tween animation engine
+ * 铜声·识洛 — Animation Engine
  *
  * Promise-based tween and keyframe sequence playback.
- * Each tween returns a Promise that resolves on completion.
+ * Uses GSAP internally for rich easing curves and multi-property animation.
+ * Legacy Tween/KeyframeSequence API preserved for backward compatibility.
  */
 
+import gsap from 'gsap';
 import { type EasingFn, getEasing } from '../utils/easing';
 
 export interface TweenConfig {
@@ -119,4 +121,101 @@ export class KeyframeSequence {
 
     return current;
   }
+}
+
+/* ═══════════════════════════════════════════════
+   §2  GSAP-Powered Animation Methods
+   ═══════════════════════════════════════════════ */
+
+/**
+ * Animate multiple properties of a target object simultaneously.
+ * Returns a Promise that resolves when complete.
+ *
+ * Usage:
+ * ```ts
+ * const obj = { x: 0, y: 0, scale: 1, alpha: 0 };
+ * await animateTo(obj, { x: 100, y: 50, scale: 1.2, alpha: 1, duration: 0.5, ease: 'back.out(1.7)' });
+ * ```
+ */
+export function animateTo(
+  target: gsap.TweenTarget,
+  vars: gsap.TweenVars,
+): Promise<void> {
+  return new Promise((resolve) => {
+    gsap.to(target, {
+      ...vars,
+      onComplete: () => {
+        (vars.onComplete as (() => void) | undefined)?.();
+        resolve();
+      },
+    });
+  });
+}
+
+/**
+ * Animate from specific values to current values.
+ * Returns a Promise that resolves when complete.
+ */
+export function animateFrom(
+  target: gsap.TweenTarget,
+  vars: gsap.TweenVars,
+): Promise<void> {
+  return new Promise((resolve) => {
+    gsap.from(target, {
+      ...vars,
+      onComplete: () => {
+        (vars.onComplete as (() => void) | undefined)?.();
+        resolve();
+      },
+    });
+  });
+}
+
+/**
+ * Create a GSAP timeline for complex sequenced animations.
+ * Returns a Promise that resolves when the timeline completes.
+ *
+ * Usage:
+ * ```ts
+ * await animateTimeline((tl) => {
+ *   tl.to(stamp, { scale: 1.2, duration: 0.3 })
+ *     .to(stamp, { scale: 1, duration: 0.2 })
+ *     .to(stamp, { alpha: 0, duration: 0.4 }, '+=0.5');
+ * });
+ * ```
+ */
+export function animateTimeline(
+  buildFn: (tl: gsap.core.Timeline) => void,
+  defaults?: gsap.TimelineVars,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const tl = gsap.timeline({
+      ...defaults,
+      onComplete: () => {
+        (defaults?.onComplete as (() => void) | undefined)?.();
+        resolve();
+      },
+    });
+    buildFn(tl);
+  });
+}
+
+/**
+ * Map a game easing name to the closest GSAP ease string.
+ * Falls back to 'power2.out' for unknown names.
+ */
+export function toGsapEase(name: string): string {
+  const map: Record<string, string> = {
+    linear: 'none',
+    'ease-in': 'power2.in',
+    'ease-out': 'power2.out',
+    'ease-in-out': 'power2.inOut',
+    'ease-out-back': 'back.out(1.7)',
+    'ease-out-elastic': 'elastic.out(1, 0.5)',
+    'ease-out-bounce': 'bounce.out',
+    'ease-out-expo': 'expo.out',
+    'ease-out-cubic': 'cubic.out',
+    'ease-in-out-cubic': 'cubic.inOut',
+  };
+  return map[name] ?? 'power2.out';
 }
