@@ -16,7 +16,11 @@ import { INK } from "../utils/constants";
 /* ───────── Utility Functions ───────── */
 
 const TAU = Math.PI * 2;
-const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
+const clamp = (v: number, a: number, b: number) => {
+	if (v < a) return a;
+	if (v > b) return b;
+	return v;
+};
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 /** Approximate gaussian, range -1..1, center-dense */
@@ -232,7 +236,8 @@ export function renderSeal(config: SealConfig): HTMLCanvasElement {
 	const canvas = document.createElement("canvas");
 	canvas.width = px;
 	canvas.height = px;
-	const ctx = canvas.getContext("2d")!;
+	const ctx = canvas.getContext("2d");
+	if (!ctx) throw new Error("Failed to get 2D context for seal canvas");
 
 	const s = px * 0.383; // seal inner area
 	const cx = px / 2;
@@ -415,7 +420,8 @@ export function generatePaperTexture(
 	const canvas = document.createElement("canvas");
 	canvas.width = w;
 	canvas.height = h;
-	const ctx = canvas.getContext("2d")!;
+	const ctx = canvas.getContext("2d");
+	if (!ctx) throw new Error("Failed to get 2D context for paper canvas");
 
 	// Base fill
 	ctx.fillStyle = tint;
