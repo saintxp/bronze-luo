@@ -39,3 +39,4 @@ yarn-error.log*
 # Vite
 cache/
 .temp/
+_test.json
