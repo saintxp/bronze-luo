@@ -16,19 +16,52 @@
 ## 开发进度
 
 ```
-最新提交: a7a62db — fix: L3 rotation puzzle auto-solve (Phase 2 WIP)
+最新提交: b3eaafc — docs: update CHANGELOG (2026-07-17)
 当前阶段: Phase 2 — 序章 → 周王城 MVP   ← 你在这里
 下一阶段: Phase 3 — 东汉 → 曹魏
 ```
 
-| 阶段 | 内容 | 工时 | 里程碑 |
-|---|---|---|---|
-| ✅ Phase 0 | 设计文档 + 项目脚手架 | — | 18 份设计文档就绪 |
-| ✅ Phase 1 | 引擎核心 + 教学关 L1-L3 | ~40h | M1: 3 教学关可玩 |
-| 🔄 **Phase 2** | **序章 → 周王城 MVP** | ~45h | M2: ~30min 体验 |
-| ⬜ Phase 3 | 东汉 → 曹魏 | ~30h | M3: ~45min 体验 |
-| ⬜ Phase 4 | 北魏 → 隋唐 → 尾声 | ~35h | M4: 完整 ~90min |
-| ⬜ Phase 5 | 打磨 + 测试 + 发布 | ~25h | M5: 发布候选 |
+| 阶段 | 内容 | 工时 | 里程碑 | 状态 |
+|---|---|---|---|---|
+| ✅ Phase 0 | 设计文档 + 项目脚手架 | — | 18 份设计文档就绪 | ✅ 完成 |
+| ✅ Phase 1 | 引擎核心 + 教学关 L1-L3 | ~40h | M1: 3 教学关可玩 (12 tests) | ✅ 完成 |
+| 🔄 **Phase 2** | **序章 → 周王城 MVP** | ~45h | M2: ~30min 体验 | 🔄 **进行中** |
+| ⬜ Phase 3 | 东汉 → 曹魏 | ~30h | M3: ~45min 体验 | ⬜ 待启动 |
+| ⬜ Phase 4 | 北魏 → 隋唐 → 尾声 | ~35h | M4: 完整 ~90min | ⬜ 待启动 |
+| ⬜ Phase 5 | 打磨 + 测试 + 发布 | ~25h | M5: 发布候选 | ⬜ 待启动 |
+
+### 最近更新
+
+| 日期 | 提交 | 内容 |
+|---|---|---|
+| 2026-07-17 | `b3eaafc` | 📝 CHANGELOG 更新 |
+| 2026-07-17 | `cef67a4` | 🖼️ ImageRenderer + 资产系统升级 + 提示词手册 |
+| 2026-07-10 | `5595e93` | 🏗️ Phase 2 框架：序章/二里头/灰页/周王城章节 + 音频/印章/嵌套谜题 |
+| 2026-06-22 | `a7a62db` | 🔧 L3 旋转谜题自动修复 |
+| 2026-06-22 | `97da750` | 📝 README 初始化 |
+| 2026-06-22 | `daf2f39` | 🚀 核心引擎 + 教学关 L1-L3（21 源文件） |
+
+### Phase 2 交付物
+
+| 模块 | 文件 | 说明 |
+|---|---|---|
+| **章节** | ChapterPrologue | 序章（封面/封背/翻页） |
+| | ChapterErlitou | 壹·二里头「陶范合拢」 |
+| | ChapterGrey | 灰页·悬置商「裂缝嵌套」 |
+| | ChapterZhou | 贰·周王城「孔老圆心/礼成/问道」 |
+| | ChapterDemoEnd | 演示结束画面 |
+| **谜题** | NestPuzzle + tests | 嵌套对齐谜题（14 测试） |
+| **音频** | AudioManager | Web Audio API 封装 |
+| | BronzeSound | 11 青铜音触发系统 |
+| **UI** | StampEffect | 印章动画 |
+| | DefinitionPopup | ≤4 字释义弹窗 |
+| **引擎** | ImageRenderer | Canvas 图片渲染（缩放/裁剪/滤镜） |
+| **资产** | VideoTrigger | Seedance 视频触发 |
+| | AssetLoader [重构] | 异步加载链 + 优先级队列 |
+| | AssetManifest [重构] | 扩展路径映射 + 章节分组 |
+| **文档** | Phase2_Seedream提示词_v1 | 序章→周王城 AI 绘图提示词 |
+| | AI资产构图规范 | 统一 AI 构图标准 |
+| | Seedream_Seedance_提示词手册 | 提示词编写指南 |
 
 ---
 
@@ -43,17 +76,17 @@
 ├── tsconfig.json                   # TypeScript 配置
 ├── vite.config.ts                  # Vite 构建配置
 │
+├── CHANGELOG.md                    # 📝 版本日志
 ├── 故事线/                          # 📄 设计文档
 │   ├── 全章故事线_v2_0.md           # — 完整故事线（12 谜题 + VFX 标注）
-│   ├── 脑暴记录/                    # — V30/V31 合并设计决策
 │   └── 场景/                        # — 11 个场景原始文件
 │
-├── 资产/                            # 📄 资产清单
-│   └── 资产清单_v2_0.md             # — 235 图 + 16 视频 + 14 音效
-│
-├── 资产/                            # 📄 资产清单 + 🎨 Phase 2 提示词
+├── 资产/                            # 📄 资产清单 + 🎨 AI 提示词
 │   ├── 资产清单_v2_0.md             # — 235 图 + 16 视频 + 14 音效
-│   └── Phase2_Seedream提示词_v1.md  # — 序章→周王城 AI 绘图提示词
+│   ├── AI资产构图规范.md             # — AI 绘图构图标准
+│   ├── Seedream_Seedance_提示词手册.md # — 提示词编写指南
+│   ├── Phase2_Seedream提示词_v1.md   # — 序章→周王城 AI 绘图提示词
+│   └── 脑暴记录/                    # — V30/V31 合并设计决策
 │
 ├── 代码/                            # 📄 代码计划
 │   └── 代码编写计划_v2_0.md          # — Canvas+TS 技术架构
@@ -65,7 +98,8 @@
     │   ├── LayerRenderer.ts        #   图层合成（拖拽/缩放/平移）
     │   ├── DragHandler.ts          #   拖拽交互（鼠标 + 触屏）
     │   ├── HitDetector.ts          #   碰撞/吸附检测
-    │   └── AnimationEngine.ts      #   Tween + 关键帧回放
+    │   ├── AnimationEngine.ts      #   Tween + 关键帧回放
+    │   └── ImageRenderer.ts        #   图片渲染（缩放/裁剪/滤镜）
     ├── puzzle/                     # 谜题层
     │   ├── PuzzleBase.ts           #   抽象谜题接口
     │   ├── AlignmentPuzzle.ts      #   拖拽对齐谜题
@@ -115,6 +149,9 @@
 | 静态图 + 音效 | ~235 张 + 14 音效 |
 | 角色 | 18 位（全部"侧写不告"） |
 | 青铜音 | 11 声 |
+| 源文件 | 34 TypeScript 模块 |
+| 单元测试 | 26（alignment 12 + nest 14）✅ 全部通过 |
+| 构建产物 | ~87KB（gzip 22KB） |
 
 ## 开发命令
 
