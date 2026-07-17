@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-07-17 — ImageRenderer + 资产系统升级
+
+**提交:** `cef67a4`
+
+### 新增
+
+- **引擎层**：ImageRenderer（Canvas 图片渲染器，支持缩放/裁剪/滤镜）
+- **资产文档**：AI 资产构图规范、Seedream/Seedance 提示词手册
+
+### 修改
+
+- **AssetLoader.ts**：重构为异步加载链 + 优先级队列，支持并发限制和重试
+- **AssetManifest.ts**：扩展资产路径映射，新增章节分组
+- **package.json**：vitest 3.2.6 → 3.2.7
+- **.gitignore**：添加 `_test.json`
+
+### 验证
+
+| 检查项 | 结果 |
+|--------|:----:|
+| TypeScript 编译 | ✅ 零错误 |
+| 生产构建 | ✅ 34 modules → 87KB (gzip 22.1KB) |
+
+---
+
 ## 2026-07-10 — Phase 2 序章·周王城框架
 
 **提交:** `5595e93`
