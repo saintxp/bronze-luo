@@ -57,6 +57,7 @@ const BTN_X = 760;
 const BTN_RESUME_Y = 420;
 const BTN_RESTART_Y = 530;
 const BTN_HOME_Y = 640;
+const BTN_CLOSE_Y = 640;
 const BTN_MUTE_Y = 745;
 const BTN_MUTE_H = 56;
 
@@ -64,8 +65,12 @@ export class HudMenu {
 	private root: Root;
 	private canvas: HTMLCanvasElement;
 	private menuLayer: Component;
+	private hudLayer: Component;
 	private callbacks: HudMenuCallbacks;
 	private btnMute: Sprite | null = null;
+	private chapterButtons: Component[] = [];
+	private closeButton: Component | null = null;
+	private pauseButton: Component | null = null;
 	private _open = false;
 
 	constructor(container: HTMLElement, callbacks: HudMenuCallbacks) {
@@ -76,18 +81,36 @@ export class HudMenu {
 		// game canvas rect exactly (CanvasManager.getDisplayRect) — done in resize().
 		this.canvas = document.createElement("canvas");
 		this.canvas.style.position = "absolute";
-		this.canvas.style.zIndex = "6";
+		// Above the HTML start page (z-index 100) so the menu is always reachable.
+		this.canvas.style.zIndex = "200";
 		this.canvas.style.pointerEvents = "none";
 		container.appendChild(this.canvas);
 
 		this.root = mount({ canvas: this.canvas });
 		this.root.viewbox(CANVAS_WIDTH, CANVAS_HEIGHT, "fill");
 
+		// HUD layer — always above game, contains the pause button
+		this.hudLayer = this.buildHud();
+		this.root.append(this.hudLayer);
+
 		this.menuLayer = this.buildMenu();
 		this.menuLayer.visible(false);
 		this.root.append(this.menuLayer);
 
 		log.info("HudMenu initialized (stage-js)");
+	}
+
+	/**
+	 * Switch between "in chapter" mode (show pause button + full menu)
+	 * and "start page" mode (hide pause button + settings-only menu).
+	 */
+	setInChapter(inChapter: boolean): void {
+		this.pauseButton?.visible(inChapter);
+		for (const btn of this.chapterButtons) {
+			btn.visible(inChapter);
+		}
+		this.closeButton?.visible(!inChapter);
+		log.info("HudMenu mode:", inChapter ? "in-chapter" : "start-page");
 	}
 
 	/**
@@ -112,6 +135,46 @@ export class HudMenu {
 	}
 
 	/* ───────── Component builders ───────── */
+
+	private buildHud(): Component {
+		const hud = component();
+
+		// Pause button — top-right ink button, toggles the menu
+		const size = 64;
+		const gap = 28;
+		this.pauseButton = memoizeDraw((ratio, texture) => {
+			texture.setSize(size, size, ratio);
+			const ctx = texture.getContext("2d");
+			ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+			// Paper body + ink border
+			ctx.fillStyle = INK.paperDeep;
+			roundRectPath(ctx, 0, 0, size, size, 10);
+			ctx.fill();
+			ctx.strokeStyle = INK.line;
+			ctx.lineWidth = 2;
+			ctx.stroke();
+
+			// Pause bars
+			ctx.fillStyle = INK.text;
+			const barW = 6;
+			const barH = 24;
+			const gapBars = 8;
+			const cx = size / 2;
+			const cy = size / 2;
+			ctx.fillRect(cx - gapBars / 2 - barW, cy - barH / 2, barW, barH);
+			ctx.fillRect(cx + gapBars / 2, cy - barH / 2, barW, barH);
+		}).size(size, size);
+		this.pauseButton.pin({ offsetX: CANVAS_WIDTH - size - gap, offsetY: gap });
+		this.pauseButton.on("click", () => {
+			this.toggle();
+			return true;
+		});
+		this.pauseButton.visible(false); // shown only when in a chapter
+		hud.append(this.pauseButton);
+
+		return hud;
+	}
 
 	private drawButton(
 		label: string,
@@ -203,7 +266,7 @@ export class HudMenu {
 		panel.pin({ offsetX: PANEL.x, offsetY: PANEL.y });
 		menu.append(panel);
 
-		// Buttons
+		// Chapter-only buttons
 		const btnResume = this.drawButton("继续", BTN_W, BTN_H, { accent: true });
 		btnResume.pin({ offsetX: BTN_X, offsetY: BTN_RESUME_Y });
 		btnResume.on("click", () => {
@@ -211,6 +274,7 @@ export class HudMenu {
 			return true; // stop propagation to backdrop
 		});
 		menu.append(btnResume);
+		this.chapterButtons.push(btnResume);
 
 		const btnRestart = this.drawButton("重玩本章", BTN_W, BTN_H);
 		btnRestart.pin({ offsetX: BTN_X, offsetY: BTN_RESTART_Y });
@@ -220,6 +284,7 @@ export class HudMenu {
 			return true;
 		});
 		menu.append(btnRestart);
+		this.chapterButtons.push(btnRestart);
 
 		const btnHome = this.drawButton("回到首页", BTN_W, BTN_H);
 		btnHome.pin({ offsetX: BTN_X, offsetY: BTN_HOME_Y });
@@ -229,6 +294,17 @@ export class HudMenu {
 			return true;
 		});
 		menu.append(btnHome);
+		this.chapterButtons.push(btnHome);
+
+		// Start-page-only close button
+		this.closeButton = this.drawButton("关闭", BTN_W, BTN_H);
+		this.closeButton.pin({ offsetX: BTN_X, offsetY: BTN_CLOSE_Y });
+		this.closeButton.on("click", () => {
+			this.close();
+			return true;
+		});
+		this.closeButton.visible(false);
+		menu.append(this.closeButton);
 
 		// Audio toggle — memoizer redraws when muted flips
 		this.btnMute = memoizeDraw(

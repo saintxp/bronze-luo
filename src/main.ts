@@ -276,8 +276,16 @@ function init(): void {
 	const startPage = document.getElementById("start-page")!;
 	const btnStart = document.getElementById("btn-start")!;
 
+	const btnSettings = document.getElementById("btn-settings")!;
+	btnSettings.addEventListener("click", () => {
+		hud.setInChapter(false);
+		hud.open();
+	});
+
 	btnStart.addEventListener("click", () => {
 		startPage.classList.add("hidden");
+		hud.close();
+		hud.setInChapter(true);
 		chapterManager.start();
 	});
 
@@ -285,6 +293,8 @@ function init(): void {
 	eventBus.on("navigate:start", () => {
 		chapterManager.goToStart();
 		startPage.classList.remove("hidden");
+		hud.close();
+		hud.setInChapter(false);
 	});
 
 	// 8. Game loop
