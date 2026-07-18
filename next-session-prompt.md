@@ -13,7 +13,7 @@ Gorogoa-like 2D 拼图独立游戏，HTML5 Canvas + TypeScript + Vite。5 层 Ca
 ### 当前最新提交
 
 ```
-7b433d6 feat: stage-js HUD pause menu with mute toggle
+aee7675 feat: stage-js HUD pause menu with mute toggle
 ```
 
 ### 构建验证
