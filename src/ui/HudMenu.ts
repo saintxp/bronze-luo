@@ -65,12 +65,10 @@ export class HudMenu {
 	private root: Root;
 	private canvas: HTMLCanvasElement;
 	private menuLayer: Component;
-	private hudLayer: Component;
 	private callbacks: HudMenuCallbacks;
 	private btnMute: Sprite | null = null;
 	private chapterButtons: Component[] = [];
 	private closeButton: Component | null = null;
-	private pauseButton: Component | null = null;
 	private _open = false;
 
 	constructor(container: HTMLElement, callbacks: HudMenuCallbacks) {
@@ -89,10 +87,6 @@ export class HudMenu {
 		this.root = mount({ canvas: this.canvas });
 		this.root.viewbox(CANVAS_WIDTH, CANVAS_HEIGHT, "fill");
 
-		// HUD layer — always above game, contains the pause button
-		this.hudLayer = this.buildHud();
-		this.root.append(this.hudLayer);
-
 		this.menuLayer = this.buildMenu();
 		this.menuLayer.visible(false);
 		this.root.append(this.menuLayer);
@@ -101,11 +95,10 @@ export class HudMenu {
 	}
 
 	/**
-	 * Switch between "in chapter" mode (show pause button + full menu)
-	 * and "start page" mode (hide pause button + settings-only menu).
+	 * Switch between "in chapter" mode (full menu)
+	 * and "start page" mode (settings-only menu).
 	 */
 	setInChapter(inChapter: boolean): void {
-		this.pauseButton?.visible(inChapter);
 		for (const btn of this.chapterButtons) {
 			btn.visible(inChapter);
 		}
@@ -135,46 +128,6 @@ export class HudMenu {
 	}
 
 	/* ───────── Component builders ───────── */
-
-	private buildHud(): Component {
-		const hud = component();
-
-		// Pause button — top-right ink button, toggles the menu
-		const size = 64;
-		const gap = 28;
-		this.pauseButton = memoizeDraw((ratio, texture) => {
-			texture.setSize(size, size, ratio);
-			const ctx = texture.getContext("2d");
-			ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-
-			// Paper body + ink border
-			ctx.fillStyle = INK.paperDeep;
-			roundRectPath(ctx, 0, 0, size, size, 10);
-			ctx.fill();
-			ctx.strokeStyle = INK.line;
-			ctx.lineWidth = 2;
-			ctx.stroke();
-
-			// Pause bars
-			ctx.fillStyle = INK.text;
-			const barW = 6;
-			const barH = 24;
-			const gapBars = 8;
-			const cx = size / 2;
-			const cy = size / 2;
-			ctx.fillRect(cx - gapBars / 2 - barW, cy - barH / 2, barW, barH);
-			ctx.fillRect(cx + gapBars / 2, cy - barH / 2, barW, barH);
-		}).size(size, size);
-		this.pauseButton.pin({ offsetX: CANVAS_WIDTH - size - gap, offsetY: gap });
-		this.pauseButton.on("click", () => {
-			this.toggle();
-			return true;
-		});
-		this.pauseButton.visible(false); // shown only when in a chapter
-		hud.append(this.pauseButton);
-
-		return hud;
-	}
 
 	private drawButton(
 		label: string,
