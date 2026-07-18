@@ -11,7 +11,7 @@
  * - Deterministic seeded RNG for consistent textures
  */
 
-import { INK } from "../utils/constants";
+import { INK, CANVAS_WIDTH, CANVAS_HEIGHT } from "../utils/constants";
 
 /* ───────── Utility Functions ───────── */
 
@@ -188,28 +188,7 @@ function applySealEdgeBreaks(
 	ctx.restore();
 }
 
-/** Wear texture — tiny particles for aged look */
-function applySealWear(
-	ctx: CanvasRenderingContext2D,
-	pts: { x: number; y: number }[],
-	carve: SealCarve,
-	color: string,
-): void {
-	const n = pts.length;
-	ctx.fillStyle = color;
-	const count = carve === "yin" ? 34 : 22;
-
-	for (let i = 0; i < count; i++) {
-		const p = pts[(Math.random() * n) | 0];
-		const px = p.x + gauss() * 2;
-		const py = p.y + gauss() * 2;
-		ctx.globalAlpha = carve === "yin" ? rand(0.3, 0.65) : rand(0.1, 0.32);
-		ctx.beginPath();
-		ctx.arc(px, py, rand(0.3, 1.3), 0, TAU);
-		ctx.fill();
-	}
-	ctx.globalAlpha = 1;
-}
+// applySealWear removed — simplified rendering for game canvas compatibility
 
 /**
  * Render a seal stamp to an offscreen canvas.
@@ -227,7 +206,7 @@ function applySealWear(
  */
 export function renderSeal(config: SealConfig): HTMLCanvasElement {
 	const carve = config.carve ?? "yin";
-	const px = config.size ?? 120;
+	const px = config.size ?? 180;
 	const color = config.color ?? INK.cinnabar;
 	const fontFamily =
 		config.fontFamily ??
@@ -239,7 +218,8 @@ export function renderSeal(config: SealConfig): HTMLCanvasElement {
 	const ctx = canvas.getContext("2d");
 	if (!ctx) throw new Error("Failed to get 2D context for seal canvas");
 
-	const s = px * 0.383; // seal inner area
+	// Larger inner area for better readability
+	const s = px * 0.7;
 	const cx = px / 2;
 	const cy = px / 2;
 
@@ -248,7 +228,8 @@ export function renderSeal(config: SealConfig): HTMLCanvasElement {
 
 	ctx.textAlign = "center";
 	ctx.textBaseline = "middle";
-	ctx.font = `${fs}px ${fontFamily}`;
+	// Bold weight for crisp readability at any scale
+	ctx.font = `bold ${fs}px ${fontFamily}`;
 
 	const contour = (() => {
 		const h = s / 2;
@@ -262,12 +243,12 @@ export function renderSeal(config: SealConfig): HTMLCanvasElement {
 		for (let i = 0; i < 4; i++) {
 			const c0 = corners[i];
 			const c1 = corners[(i + 1) % 4];
-			pts.push({ x: cx + c0.x + gauss() * 1.2, y: cy + c0.y + gauss() * 1.2 });
+			pts.push({ x: cx + c0.x + gauss() * 2, y: cy + c0.y + gauss() * 2 });
 			for (let k = 1; k <= 2; k++) {
 				const t = k / 3;
 				pts.push({
-					x: cx + lerp(c0.x, c1.x, t) + gauss() * 0.9,
-					y: cy + lerp(c0.y, c1.y, t) + gauss() * 0.8,
+					x: cx + lerp(c0.x, c1.x, t) + gauss() * 1.5,
+					y: cy + lerp(c0.y, c1.y, t) + gauss() * 1.2,
 				});
 			}
 		}
@@ -284,35 +265,39 @@ export function renderSeal(config: SealConfig): HTMLCanvasElement {
 	};
 
 	if (carve === "yin") {
-		// 阴刻: red background, white (cut-out) text
-		ctx.fillStyle = `${color}f0`; // slightly transparent
+		// 阴刻: semi-transparent red ground, white incised text
+		// Rendered on its own canvas so the seal's transparent background
+		// lets game content show through behind the seal.
+		ctx.globalAlpha = 0.76;
+		ctx.fillStyle = color;
 		drawContourPath();
 		ctx.fill();
+		ctx.globalAlpha = 1;
 
-		// Cut out text
-		ctx.globalCompositeOperation = "destination-out";
+		// Draw text in paper-white to simulate carved-out characters
+		ctx.fillStyle = "#fff8f0";
 		for (let i = 0; i < chars.length; i++) {
 			if (pos[i]) ctx.fillText(chars[i], pos[i][0], pos[i][1]);
 		}
 
+		// Edge weathering on the red fill (punch tiny holes)
+		ctx.globalCompositeOperation = "destination-out";
 		applySealEdgeBreaks(ctx, contour);
-		applySealWear(ctx, contour, "yin", color);
 		ctx.globalCompositeOperation = "source-over";
 	} else {
-		// 阳刻: red text, thin red border
-		ctx.fillStyle = `${color}e0`;
+		// 阳刻: red text, thin red border, transparent background
+		ctx.fillStyle = color;
 		for (let i = 0; i < chars.length; i++) {
 			if (pos[i]) ctx.fillText(chars[i], pos[i][0], pos[i][1]);
 		}
 
-		ctx.strokeStyle = `${color}7a`;
-		ctx.lineWidth = rand(1.3, 2.1);
+		ctx.strokeStyle = `${color}aa`;
+		ctx.lineWidth = rand(2, 3.5);
 		drawContourPath();
 		ctx.stroke();
 
 		ctx.globalCompositeOperation = "destination-out";
 		applySealEdgeBreaks(ctx, contour);
-		applySealWear(ctx, contour, "yang", color);
 		ctx.globalCompositeOperation = "source-over";
 	}
 
@@ -585,4 +570,53 @@ export function drawVerticalText(
 		cx -= colGap; // next column to the left
 	}
 	ctx.globalAlpha = 1;
+}
+
+/* ───────── Cached paper texture for game backgrounds ───────── */
+
+let _cachedPaperCanvas: HTMLCanvasElement | null = null;
+
+/**
+ * Lazy-generate the paper texture once, then cache it.
+ * Uses game canvas dimensions (1920×1080) for a perfect fit.
+ */
+export function getCachedPaperTexture(): HTMLCanvasElement {
+	if (!_cachedPaperCanvas) {
+		_cachedPaperCanvas = generatePaperTexture({
+			width: CANVAS_WIDTH,
+			height: CANVAS_HEIGHT,
+			weight: "medium",
+			seed: "game-bg",
+		});
+	}
+	return _cachedPaperCanvas;
+}
+
+/** Clear the cache (call when canvas size changes). */
+export function clearPaperTextureCache(): void {
+	_cachedPaperCanvas = null;
+}
+
+/**
+ * Draw the pre-rendered paper texture as a background,
+ * with an optional chapter-tinted color overlay.
+ *
+ * @param ctx — target context (typically BG canvas)
+ * @param tintColor — chapter-specific overlay color (e.g. '#5D7A5E' for Zhou)
+ * @param tintAlpha — overlay opacity (0 = pure paper, 1 = pure color)
+ */
+export function drawPaperBackground(
+	ctx: CanvasRenderingContext2D,
+	tintColor?: string,
+	tintAlpha = 0,
+): void {
+	const paper = getCachedPaperTexture();
+	ctx.drawImage(paper, 0, 0);
+
+	if (tintColor && tintAlpha > 0) {
+		ctx.fillStyle = tintColor;
+		ctx.globalAlpha = tintAlpha;
+		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		ctx.globalAlpha = 1;
+	}
 }

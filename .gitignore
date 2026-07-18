@@ -40,3 +40,7 @@ yarn-error.log*
 cache/
 .temp/
 _test.json
+
+# Test artifacts
+screenshots/
+nul

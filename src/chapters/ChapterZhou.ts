@@ -17,6 +17,7 @@
 import { ChapterBase } from "./ChapterBase";
 import type { CanvasManager } from "../engine/CanvasManager";
 import type { DragHandler, DragState } from "../engine/DragHandler";
+import type { VFXParticleManager } from "../engine/VFXParticleManager";
 import type { StampEffect } from "../ui/StampEffect";
 import { eventBus } from "../utils/EventBus";
 import {
@@ -27,6 +28,7 @@ import {
 } from "../utils/constants";
 import { type Vec2, vec2Distance } from "../utils/math";
 import { createLogger } from "../utils/logger";
+import { drawPaperBackground } from "../ui/InkPaintingUtils";
 
 const log = createLogger("ChapterZhou");
 
@@ -89,6 +91,7 @@ export class ChapterZhou extends ChapterBase {
 	private canvasManager: CanvasManager;
 	private dragHandler: DragHandler;
 	private stampEffect: StampEffect;
+	private particles: VFXParticleManager;
 
 	private frame: ZhouFrame = ZhouFrame.SAL_SUN_DIAL;
 	private frameTimer = 0;
@@ -139,11 +142,13 @@ export class ChapterZhou extends ChapterBase {
 		canvasManager: CanvasManager,
 		dragHandler: DragHandler,
 		stampEffect: StampEffect,
+		particles: VFXParticleManager,
 	) {
 		super("zhou");
 		this.canvasManager = canvasManager;
 		this.dragHandler = dragHandler;
 		this.stampEffect = stampEffect;
+		this.particles = particles;
 	}
 
 	init(): void {
@@ -311,6 +316,8 @@ export class ChapterZhou extends ChapterBase {
 		this.frameTimer = 0;
 		this.resonanceAlpha = 0;
 		eventBus.emit("bronze:sound", { soundId: "weng" });
+		const resX = BELLS_START_X + RESONANCE_INDEX * BELL_SPACING;
+		this.particles.trigger("bellSoundwave", resX, BELLS_Y);
 		log.info("Zhou: 礼成 — tune → resonance + 嗡——");
 	}
 
@@ -607,13 +614,9 @@ export class ChapterZhou extends ChapterBase {
 	private drawBackground(
 		ctx: CanvasRenderingContext2D,
 		topColor: string,
-		bottomColor: string,
+		_bottomColor: string,
 	): void {
-		const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
-		grad.addColorStop(0, topColor);
-		grad.addColorStop(1, bottomColor);
-		ctx.fillStyle = grad;
-		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		drawPaperBackground(ctx, topColor, 0.35);
 	}
 
 	private drawBronzeEdge(ctx: CanvasRenderingContext2D, alpha = 1): void {

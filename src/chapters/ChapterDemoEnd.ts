@@ -13,6 +13,7 @@ import type { CanvasManager } from "../engine/CanvasManager";
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "../utils/constants";
 import { eventBus } from "../utils/EventBus";
 import { createLogger } from "../utils/logger";
+import { drawPaperBackground } from "../ui/InkPaintingUtils";
 
 const log = createLogger("ChapterDemoEnd");
 
@@ -184,9 +185,8 @@ export class ChapterDemoEnd extends ChapterBase {
 		const ctx = this.canvasManager.getContext("bg");
 		if (!ctx) return;
 
-		// Always render the warm paper background first
-		ctx.fillStyle = "#f6f1e6";
-		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		// Warm paper texture as background
+		drawPaperBackground(ctx);
 
 		// Book page border decoration
 		ctx.strokeStyle = "rgba(42,39,35,0.08)";

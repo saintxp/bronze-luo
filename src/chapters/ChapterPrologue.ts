@@ -15,8 +15,10 @@
 import { ChapterBase } from "./ChapterBase";
 import type { CanvasManager } from "../engine/CanvasManager";
 import type { DragHandler } from "../engine/DragHandler";
+import type { VFXParticleManager } from "../engine/VFXParticleManager";
 import { eventBus } from "../utils/EventBus";
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "../utils/constants";
+import { drawPaperBackground } from "../ui/InkPaintingUtils";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("ChapterPrologue");
@@ -35,6 +37,7 @@ enum PrologueFrame {
 export class ChapterPrologue extends ChapterBase {
 	private canvasManager: CanvasManager;
 	private dragHandler: DragHandler;
+	private particles: VFXParticleManager;
 	private frame: PrologueFrame = PrologueFrame.COVER;
 	private frameTimer = 0; // ms in current frame
 	private holdDuration = 0; // ms user has pressed on COVER
@@ -57,10 +60,15 @@ export class ChapterPrologue extends ChapterBase {
 	private boundPointerDown: ((e: Event) => void) | null = null;
 	private boundPointerUp: ((e: Event) => void) | null = null;
 
-	constructor(canvasManager: CanvasManager, dragHandler: DragHandler) {
+	constructor(
+		canvasManager: CanvasManager,
+		dragHandler: DragHandler,
+		particles: VFXParticleManager,
+	) {
 		super("prologue");
 		this.canvasManager = canvasManager;
 		this.dragHandler = dragHandler;
+		this.particles = particles;
 	}
 
 	init(): void {
@@ -176,6 +184,7 @@ export class ChapterPrologue extends ChapterBase {
 	private advanceToFlood(): void {
 		this.frame = PrologueFrame.COPPER_FLOOD;
 		this.frameTimer = 0;
+		this.particles.trigger("copperSplash", CX, CY);
 		eventBus.emit("bronze:sound", { soundId: "guDu" });
 		log.info("Prologue: FINGERPRINT → COPPER_FLOOD");
 	}
@@ -280,9 +289,8 @@ export class ChapterPrologue extends ChapterBase {
 	/* ───────── Frame 0: Cover ───────── */
 
 	private renderCover(ctx: CanvasRenderingContext2D): void {
-		// Warm brown background
-		ctx.fillStyle = "#8B6914";
-		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		// Warm brown over paper texture
+		drawPaperBackground(ctx, "#8B6914", 0.55);
 
 		// Dark edge vignette
 		const vignette = ctx.createRadialGradient(
@@ -363,9 +371,8 @@ export class ChapterPrologue extends ChapterBase {
 	}
 
 	private renderMap(ctx: CanvasRenderingContext2D): void {
-		// Lighter warm background
-		ctx.fillStyle = "#A0782C";
-		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		// Lighter warm over paper texture
+		drawPaperBackground(ctx, "#A0782C", 0.45);
 
 		const river = this.getRiverPath();
 
@@ -443,9 +450,8 @@ export class ChapterPrologue extends ChapterBase {
 	/* ───────── Frame 2: Fingerprint ───────── */
 
 	private renderFingerprint(ctx: CanvasRenderingContext2D): void {
-		// Same dimmed map background
-		ctx.fillStyle = "#A0782C";
-		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		// Same dimmed map over paper texture
+		drawPaperBackground(ctx, "#A0782C", 0.55);
 
 		const river = this.getRiverPath();
 
@@ -512,9 +518,8 @@ export class ChapterPrologue extends ChapterBase {
 	/* ───────── Frame 3: Copper Flood ───────── */
 
 	private renderCopperFlood(ctx: CanvasRenderingContext2D): void {
-		// Base map background
-		ctx.fillStyle = "#A0782C";
-		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		// Base map over paper texture
+		drawPaperBackground(ctx, "#A0782C", 0.45);
 
 		// Copper flood trapezoidal panels from all 4 sides
 		const p = this.copperProgress; // 0..1

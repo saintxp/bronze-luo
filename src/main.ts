@@ -12,6 +12,7 @@
 
 import { CanvasManager } from "./engine/CanvasManager";
 import { DragHandler } from "./engine/DragHandler";
+import { VFXParticleManager } from "./engine/VFXParticleManager";
 import { ChapterTutorial } from "./chapters/ChapterTutorial";
 import { ChapterPrologue } from "./chapters/ChapterPrologue";
 import { ChapterErlitou } from "./chapters/ChapterErlitou";
@@ -26,26 +27,35 @@ import { VideoTrigger } from "./assets/VideoTrigger";
 import { gameState } from "./state/GameState";
 import { eventBus } from "./utils/EventBus";
 import { createLogger, setLogLevel } from "./utils/logger";
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./utils/constants";
 
 const log = createLogger("main");
+
+/* ───────── Transition Constants ───────── */
+const FADE_DURATION = 350; // ms — chapter transition fade
 
 /* ───────── ChapterManager ───────── */
 
 /**
  * Manages an ordered list of chapters.
  * Listens for 'chapter:complete' events to auto-advance.
- * Each chapter goes through: init() → enter() → update() loop → exit()
+ * Chapters transition via fade-to-black → switch → fade-in.
  */
 class ChapterManager {
 	private chapters: ChapterBase[];
 	private currentIndex = -1;
 	private canvasManager: CanvasManager;
+	private isTransitioning = false;
+	private transitionAlpha = 0; // 0→1 during fade-out
+	private transitionPhase: "idle" | "fadeOut" | "fadeIn" = "idle";
+	private transitionTimer = 0;
 
 	constructor(chapters: ChapterBase[], canvasManager: CanvasManager) {
 		this.chapters = chapters;
 		this.canvasManager = canvasManager;
 
 		eventBus.on("chapter:complete", () => {
+			if (this.isTransitioning) return; // debounce
 			log.info("Chapter complete event — advancing to next");
 			this.nextChapter();
 		});
@@ -68,6 +78,8 @@ class ChapterManager {
 			this.chapters[this.currentIndex].exit();
 		}
 		this.currentIndex = -1;
+		this.isTransitioning = false;
+		this.transitionPhase = "idle";
 		this.canvasManager.clearAll();
 		log.info("Returned to start page");
 	}
@@ -77,22 +89,35 @@ class ChapterManager {
 	}
 
 	private goToChapter(index: number): void {
-		// Exit current chapter
-		if (this.currentIndex >= 0 && this.currentIndex < this.chapters.length) {
-			this.chapters[this.currentIndex].exit();
-		}
-
 		if (index >= this.chapters.length) {
 			log.info("All chapters complete — end of demo");
 			this.currentIndex = -1;
+			this.isTransitioning = false;
+			this.transitionPhase = "idle";
 			return;
+		}
+
+		// Start fade-out transition
+		this.isTransitioning = true;
+		this.transitionPhase = "fadeOut";
+		this.transitionAlpha = 0;
+		this.transitionTimer = 0;
+		// Defer chapter switch and fade-in until fade-out completes
+		this._pendingIndex = index;
+	}
+
+	private _pendingIndex = -1;
+
+	private finishSwitch(index: number): void {
+		// Exit current chapter
+		if (this.currentIndex >= 0 && this.currentIndex < this.chapters.length) {
+			this.chapters[this.currentIndex].exit();
 		}
 
 		this.currentIndex = index;
 		this.canvasManager.clearAll();
 
 		const chapter = this.chapters[index];
-		// Set GameState chapter before init so registerPuzzle() works
 		gameState.enterChapter(chapter.id);
 		chapter.init();
 		chapter.enter();
@@ -100,13 +125,62 @@ class ChapterManager {
 		log.info(
 			`Switched to chapter: ${chapter.id} (${index + 1}/${this.chapters.length})`,
 		);
+
+		// Start fade-in
+		this.transitionPhase = "fadeIn";
+		this.transitionAlpha = 1;
+		this.transitionTimer = 0;
 	}
 
 	update(dt: number): void {
+		// Handle transition animation
+		if (this.isTransitioning) {
+			this.transitionTimer += dt * 1000; // dt is in seconds
+			const t = Math.min(this.transitionTimer / FADE_DURATION, 1);
+
+			if (this.transitionPhase === "fadeOut") {
+				this.transitionAlpha = t;
+
+				// Render black overlay
+				this.renderTransitionOverlay();
+
+				if (t >= 1) {
+					this.finishSwitch(this._pendingIndex);
+				}
+			} else if (this.transitionPhase === "fadeIn") {
+				this.transitionAlpha = 1 - t;
+
+				// Render black overlay
+				this.renderTransitionOverlay();
+
+				if (t >= 1) {
+					this.isTransitioning = false;
+					this.transitionPhase = "idle";
+				}
+			}
+
+			// Still update current chapter during transition
+			const ch = this.currentChapter;
+			if (ch) {
+				ch.update(dt);
+			}
+			return;
+		}
+
 		const ch = this.currentChapter;
 		if (ch) {
 			ch.update(dt);
 		}
+	}
+
+	/** Render the fade transition overlay on the UI canvas. */
+	private renderTransitionOverlay(): void {
+		const ctx = this.canvasManager.getContext("ui");
+		if (!ctx) return;
+
+		ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		ctx.fillStyle = `rgba(0,0,0,${this.transitionAlpha})`;
+		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 	}
 }
 
@@ -131,13 +205,23 @@ function init(): void {
 	const definitionPopup = new DefinitionPopup(canvasManager);
 	const videoTrigger = new VideoTrigger(canvasManager);
 
+	// 4.5 Particle effects — VFX layer
+	const vfxCanvas = canvasManager.getLayer("vfx")?.canvas;
+	if (!vfxCanvas) throw new Error("VFX canvas layer not found");
+	const particleManager = new VFXParticleManager(vfxCanvas);
+
 	// 5. Chapters (expand incrementally as Steps 3-6 add each chapter)
 	const chapters: ChapterBase[] = [
 		new ChapterTutorial(canvasManager, dragHandler),
-		new ChapterPrologue(canvasManager, dragHandler),
-		new ChapterErlitou(canvasManager, dragHandler, stampEffect),
-		new ChapterGrey(canvasManager, dragHandler),
-		new ChapterZhou(canvasManager, dragHandler, stampEffect),
+		new ChapterPrologue(canvasManager, dragHandler, particleManager),
+		new ChapterErlitou(
+			canvasManager,
+			dragHandler,
+			stampEffect,
+			particleManager,
+		),
+		new ChapterGrey(canvasManager, dragHandler, stampEffect),
+		new ChapterZhou(canvasManager, dragHandler, stampEffect, particleManager),
 		new ChapterDemoEnd(canvasManager),
 	];
 
@@ -165,6 +249,11 @@ function init(): void {
 	function gameLoop(now: number): void {
 		const dt = now - lastTime;
 		lastTime = now;
+
+		// Clear the UI layer once per frame — overlay renderers
+		// (stamp / popup / video / tutorial / transition) draw fresh
+		// each frame and must never accumulate into opaque blobs.
+		canvasManager.clearLayer("ui");
 
 		// Update current chapter (renders BG, Puzzle, VFX layers)
 		chapterManager.update(dt);

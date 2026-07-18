@@ -127,6 +127,14 @@ export class DragHandler {
 		this.canvas.removeEventListener("touchmove", this.boundTouchMove);
 		this.canvas.removeEventListener("touchend", this.boundTouchEnd);
 		this.canvas = null;
+		// Elements and callbacks are chapter-scoped — clear them so they
+		// never leak into the next chapter and shadow new registrations
+		// (findElementAt iterates the Map in insertion order).
+		this.elements.clear();
+		this._onDrag = null;
+		this._onDragEnd = null;
+		this.state.active = false;
+		this.state.targetId = null;
 	}
 
 	/**

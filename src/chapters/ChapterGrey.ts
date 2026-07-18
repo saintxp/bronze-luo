@@ -18,6 +18,7 @@
 import { ChapterBase } from "./ChapterBase";
 import type { CanvasManager } from "../engine/CanvasManager";
 import type { DragHandler, DragState } from "../engine/DragHandler";
+import type { StampEffect } from "../ui/StampEffect";
 import { eventBus } from "../utils/EventBus";
 import {
 	SNAP_THRESHOLD,
@@ -27,6 +28,7 @@ import {
 } from "../utils/constants";
 import { type Vec2, vec2Distance } from "../utils/math";
 import { createLogger } from "../utils/logger";
+import { drawPaperBackground } from "../ui/InkPaintingUtils";
 
 const log = createLogger("ChapterGrey");
 
@@ -79,6 +81,7 @@ enum GreyFrame {
 export class ChapterGrey extends ChapterBase {
 	private canvasManager: CanvasManager;
 	private dragHandler: DragHandler;
+	private stampEffect: StampEffect;
 	private frame: GreyFrame = GreyFrame.INTRO;
 	private frameTimer = 0;
 
@@ -101,10 +104,15 @@ export class ChapterGrey extends ChapterBase {
 	private readonly REVEAL_DURATION = 2500;
 	private readonly TRANSITION_DURATION = 500;
 
-	constructor(canvasManager: CanvasManager, dragHandler: DragHandler) {
+	constructor(
+		canvasManager: CanvasManager,
+		dragHandler: DragHandler,
+		stampEffect: StampEffect,
+	) {
 		super("grey");
 		this.canvasManager = canvasManager;
 		this.dragHandler = dragHandler;
+		this.stampEffect = stampEffect;
 	}
 
 	init(): void {
@@ -188,6 +196,7 @@ export class ChapterGrey extends ChapterBase {
 		this.teardownDrag();
 		this.frame = GreyFrame.REVEAL;
 		this.frameTimer = 0;
+		this.stampEffect.showStamp({ text: "悬置" });
 		log.info("Grey: PUZZLE → REVEAL");
 	}
 
@@ -310,9 +319,8 @@ export class ChapterGrey extends ChapterBase {
 
 	/** Draw a constellation star map. */
 	private drawStarmap(ctx: CanvasRenderingContext2D, alpha: number): void {
-		// Dark sky (only visible through cracks, so this stays as BG)
-		ctx.fillStyle = "#0a0a18";
-		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		// Dark sky over heavy paper texture
+		drawPaperBackground(ctx, "#0a0a18", 0.9);
 
 		// Generate stars procedurally with fixed seeds
 		const stars: { x: number; y: number; s: number; b: number }[] = [];
@@ -395,9 +403,8 @@ export class ChapterGrey extends ChapterBase {
 
 	/** Frame 0: Intro — dark gray page with first crack appearing. */
 	private renderIntro(ctx: CanvasRenderingContext2D): void {
-		// Dark background
-		ctx.fillStyle = "#1A1A18";
-		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		// Dark background over heavy paper texture
+		drawPaperBackground(ctx, "#1A1A18", 0.88);
 
 		// Gray overlay with crack appearing
 		const crackProgress = Math.min(1, this.frameTimer / this.INTRO_DURATION);
