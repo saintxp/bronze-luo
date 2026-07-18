@@ -108,6 +108,10 @@ export class ChapterZhou extends ChapterBase {
 	private laoziSolved = false;
 	private laoziDist = Infinity; // current distance to center
 
+	// Stake wrong-order shake
+	private stakeShakeTimer = 0;
+	private stakeShakeOffset = 0;
+
 	// 礼成 state
 	private strikerX = BELLS_START_X + RESONANCE_INDEX * BELL_SPACING;
 	private strikerBaseX = BELLS_START_X + RESONANCE_INDEX * BELL_SPACING;
@@ -179,6 +183,8 @@ export class ChapterZhou extends ChapterBase {
 		this.tripodSavedX = 0;
 		this.laoziPos = { ...LAOZI_INITIAL };
 		this.stakesPressed = [false, false, false];
+		this.stakeShakeTimer = 0;
+		this.stakeShakeOffset = 0;
 		this.laoziSolved = false;
 		this.laoziDist = Infinity;
 		this.strikerX = BELLS_START_X + RESONANCE_INDEX * BELL_SPACING;
@@ -205,6 +211,17 @@ export class ChapterZhou extends ChapterBase {
 			case ZhouFrame.SAL_STAMP_ZHAIZI:
 				if (this.frameTimer >= this.AUTO_STAMP_ZHAIZI)
 					this.advanceToBellsAppear();
+				break;
+			case ZhouFrame.SAL_STAKES:
+				// Wrong-order shake decay
+				if (this.stakeShakeTimer > 0) {
+					this.stakeShakeTimer -= dt;
+					this.stakeShakeOffset =
+						Math.sin(this.stakeShakeTimer * 0.08) *
+						5 *
+						(this.stakeShakeTimer / 500);
+					if (this.stakeShakeTimer <= 0) this.stakeShakeOffset = 0;
+				}
 				break;
 			case ZhouFrame.LI_BELLS_APPEAR:
 				this.bellsAlpha = Math.min(1, this.frameTimer / 1000);
@@ -506,18 +523,31 @@ export class ChapterZhou extends ChapterBase {
 	}
 
 	private checkStakeHit(pos: Vec2): void {
+		// Stakes must be pressed in order: 0 (left) → 1 (center) → 2 (right)
 		for (let i = 0; i < STAKE_POSITIONS.length; i++) {
 			if (this.stakesPressed[i]) continue;
 			const dist = vec2Distance(pos, STAKE_POSITIONS[i]);
 			if (dist < STAKE_RADIUS + 10) {
-				this.stakesPressed[i] = true;
-				log.info(`Zhou: stake ${i + 1}/3 pressed`);
-				if (this.stakesPressed.every(Boolean)) {
-					this.advanceToZhaiziStamp();
+				if (i === this.nextStakeIndex()) {
+					this.stakesPressed[i] = true;
+					log.info(`Zhou: stake ${i + 1}/3 pressed`);
+					if (this.stakesPressed.every(Boolean)) {
+						this.advanceToZhaiziStamp();
+					}
+				} else {
+					// Wrong order — shake feedback
+					this.stakeShakeTimer = 500;
 				}
 				return;
 			}
 		}
+	}
+
+	private nextStakeIndex(): number {
+		for (let i = 0; i < this.stakesPressed.length; i++) {
+			if (!this.stakesPressed[i]) return i;
+		}
+		return -1;
 	}
 
 	private setupBellTuneDrag(): void {
@@ -568,7 +598,12 @@ export class ChapterZhou extends ChapterBase {
 				this.renderKongLao(ctx);
 				break;
 			case ZhouFrame.SAL_STAKES:
+				if (this.stakeShakeOffset !== 0) {
+					ctx.save();
+					ctx.translate(this.stakeShakeOffset, 0);
+				}
 				this.renderStakes(ctx);
+				if (this.stakeShakeOffset !== 0) ctx.restore();
 				break;
 			case ZhouFrame.SAL_STAMP_ZHAIZI:
 				this.renderZhaiziStamp(ctx);
@@ -1006,19 +1041,32 @@ export class ChapterZhou extends ChapterBase {
 		}
 		ctx.stroke();
 
-		// Draw stakes
+		// Draw stakes with numbering (reveals required order: 一→二→三, left→right)
+		const STAKE_LABELS = ["一", "二", "三"];
 		for (let i = 0; i < 3; i++) {
 			const s = STAKE_POSITIONS[i];
 			const pressed = this.stakesPressed[i];
+			const isNext = i === this.nextStakeIndex();
 
 			// Stake top (circle)
 			ctx.fillStyle = pressed ? "#C8A65A" : "#8B8070";
-			ctx.strokeStyle = pressed ? "#D4A843" : "#5D7A5E";
-			ctx.lineWidth = 2;
+			ctx.strokeStyle = isNext ? "#D4A843" : pressed ? "#D4A843" : "#5D7A5E";
+			ctx.lineWidth = isNext ? 3 : 2;
 			ctx.beginPath();
 			ctx.arc(s.x, s.y, STAKE_RADIUS, 0, Math.PI * 2);
 			ctx.fill();
 			ctx.stroke();
+
+			// Order label above stake
+			ctx.fillStyle = pressed
+				? "rgba(200,166,90,0.6)"
+				: isNext
+					? "rgba(212,168,67,0.8)"
+					: "rgba(139,128,112,0.5)";
+			ctx.font = '14px "PingFang SC", "Noto Sans SC", serif';
+			ctx.textAlign = "center";
+			ctx.textBaseline = "bottom";
+			ctx.fillText(STAKE_LABELS[i], s.x, s.y - STAKE_RADIUS - 6);
 
 			if (pressed) {
 				// Rope wrapped around
@@ -1039,7 +1087,14 @@ export class ChapterZhou extends ChapterBase {
 		ctx.textAlign = "center";
 		ctx.fillText("拽绳打桩", CX, CY - 120);
 
-		this.drawInstruction(ctx, "点击木桩 — 依次打三桩");
+		// Instruction — dynamic based on state
+		if (this.stakeShakeTimer > 0) {
+			this.drawInstruction(ctx, "顺序不对！从左往右依次打桩");
+		} else if (this.stakesPressed.every(Boolean)) {
+			this.drawInstruction(ctx, "");
+		} else {
+			this.drawInstruction(ctx, "依次点击木桩 — 从左到右");
+		}
 	}
 
 	private renderZhaiziStamp(ctx: CanvasRenderingContext2D): void {

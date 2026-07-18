@@ -317,11 +317,15 @@ export class ChapterPrologue extends ChapterBase {
 		ctx.lineWidth = 1;
 		ctx.strokeRect(CX - 80, CY - 70, 160, 100);
 
-		// Title
-		ctx.fillStyle = "#C8A65A";
+		// Title — rendered with shadow for contrast against warm brown background
 		ctx.font = 'bold 64px "PingFang SC", "Noto Sans SC", serif';
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
+		// Dark shadow for depth
+		ctx.fillStyle = "rgba(32,28,24,0.55)";
+		ctx.fillText("铜声·识洛", CX + 2, CY - 38);
+		// Brighter gold — visible against brown paper
+		ctx.fillStyle = "#E8D068";
 		ctx.fillText("铜声·识洛", CX, CY - 40);
 
 		// Subtitle

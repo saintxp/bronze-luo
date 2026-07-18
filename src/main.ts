@@ -1,8 +1,9 @@
 /**
  * 铜声·识洛 — Game bootstrap
  *
- * Phase 2: ChapterManager drives the flow:
+ * Phase 3: ChapterManager drives the flow:
  *   tutorial → prologue → erlitou → grey → zhou
+ *   → zili → diting → zhicheng → tuo → jincheng → shiqi
  * Chapters are added incrementally as they are implemented.
  *
  * Global singletons (CanvasManager, DragHandler, AudioManager,
@@ -18,6 +19,12 @@ import { ChapterPrologue } from "./chapters/ChapterPrologue";
 import { ChapterErlitou } from "./chapters/ChapterErlitou";
 import { ChapterGrey } from "./chapters/ChapterGrey";
 import { ChapterZhou } from "./chapters/ChapterZhou";
+import { ChapterDongHanZili } from "./chapters/ChapterDongHan_Zili";
+import { ChapterDongHanDiting } from "./chapters/ChapterDongHan_Diting";
+import { ChapterDongHanZhicheng } from "./chapters/ChapterDongHan_Zhicheng";
+import { ChapterDongHanTuo } from "./chapters/ChapterDongHan_Tuo";
+import { ChapterCaoWeiJincheng } from "./chapters/ChapterCaoWei_Jincheng";
+import { ChapterCaoWeiShiqi } from "./chapters/ChapterCaoWei_Shiqi";
 import { ChapterDemoEnd } from "./chapters/ChapterDemoEnd";
 import type { ChapterBase } from "./chapters/ChapterBase";
 import { initBronzeSounds } from "./audio/BronzeSound";
@@ -246,6 +253,14 @@ function init(): void {
 		),
 		new ChapterGrey(canvasManager, dragHandler, stampEffect),
 		new ChapterZhou(canvasManager, dragHandler, stampEffect, particleManager),
+		// ── Phase 3: 东汉 (vermillion + pitch black) ──
+		new ChapterDongHanZili(canvasManager, dragHandler, stampEffect),
+		new ChapterDongHanDiting(canvasManager, stampEffect),
+		new ChapterDongHanZhicheng(canvasManager, dragHandler, stampEffect),
+		new ChapterDongHanTuo(canvasManager, dragHandler, stampEffect),
+		// ── Phase 3: 曹魏 (ash + ochre) ──
+		new ChapterCaoWeiJincheng(canvasManager, stampEffect),
+		new ChapterCaoWeiShiqi(canvasManager, stampEffect),
 		new ChapterDemoEnd(canvasManager),
 	];
 

@@ -1,13 +1,13 @@
-# 铜声·识洛 — BGM 提示词（Phase 2 专用）
+# 铜声·识洛 — BGM 提示词（Phase 2-3）
 
-> **范围**：开始界面 + 教学关 L1-L3 + 序章 + 壹·二里头 + 灰页 + 贰·周王城  
-> **已确认**：采用方案 A，从全游戏 11 轨中裁出 6 轨。  
+> **范围**：开始界面 + 教学关 L1-L3 + 序章 + 壹·二里头 + 灰页 + 贰·周王城 + 叁·东汉 + 肆·曹魏  
+> **已确认**：采用方案 A，从全游戏 11 轨中裁出 8 轨。  
 > **生成工具**：主用 Suno AI（中文提示词），精修可用 Udio（英文提示词）。  
 > **输出规格**：每轨 2-3 分钟可循环体，WAV 母版 + OGG 运行版，响度 -16 LUFS。
 
 ---
 
-## Phase 2 BGM 清单
+## 全量 BGM 清单（Phase 2-3）
 
 | # | 章节 | 曲名 | BPM | 调式 | 用途 |
 | :--: | --- | --- | :--: | --- | --- |
@@ -17,6 +17,8 @@
 | 03 | 壹·二里头 | 《铸火》 | 80 | C 徵 | 二里头背景 |
 | 04 | 灰页 | 《悬置》 | 无 | 无调 | 灰页背景 |
 | 05 | 贰·周王城 | 《礼序》 | 66 | F 宫 | 周王城（营洛/礼成/问道）背景 |
+| 06 | 叁·东汉 | 《字沉》 | 54 | A 羽 | 东汉（字立/地听/纸成/托）背景 |
+| 07 | 肆·曹魏 | 《灰叙》 | 48 | D 羽 | 曹魏（烬城/诗起）背景 |
 
 ---
 
@@ -239,3 +241,92 @@ classical court music atmosphere
 | 铸火 | S01 咕嘟 | 铜声触发时 BGM 可闪避 1-2dB |
 | 悬置 | 无 | 灰页对应「沉默」 |
 | 礼序 | S02 嗡——、S03 叮——叮——、S14 翻页 | 编钟音色互补 |
+
+---
+
+## Phase 3 新增 BGM（2轨）
+
+## 06 叁·东汉 · 《字沉》
+
+- **时长**：2:30
+- **乐器**：古琴按音（低沉）、陶埙长音、石磬单音、极简编钟残响
+- **情绪**：深沉、暗涌、石碑林立，赤红点缀玄黑——不是悲伤是凝视
+- **循环**：以石磬单音起拍、收拍，中间古琴为主
+
+**中文 Suno 提示词**：
+
+```
+中国水墨风格东汉石碑场景背景音乐，
+深沉暗涌，熹平石经碑林矗立在夜色中，
+主要乐器为古琴按音低沉和鸣、陶埙长音铺底、石磬偶尔单音点缀，
+A羽五声音阶，54 BPM，极缓慢，
+旋律像刻字——一凿一凿的缓慢推进，
+可无缝循环，无歌词，无人声，
+赤红朱砂印在黑色石碑上的质感
+```
+
+**英文 Udio 提示词**：
+
+```
+Eastern Han dynasty stone tablet forest background music,
+deep and understated, stone classics in the night,
+featured instruments: guqin low register, xun drone, stone chime accents,
+A yu pentatonic, 54 BPM, very slow,
+melody like chiseling characters into stone,
+seamless loop, no vocals, no lyrics,
+vermillion seal on black stele atmosphere
+```
+
+**文件名**：`bgm_06_ziChen_dongHanStoneClassics.wav`
+
+---
+
+## 07 肆·曹魏 · 《灰叙》
+
+- **时长**：3:00
+- **乐器**：大提琴泛音、风吹灰烬纹理、极远铜钟残响、纸燃烧微音
+- **情绪**：废墟、沉默的悲伤、灰烬中还有未烧尽的文字
+- **循环**：持续音景，以风声起、以风声收
+
+**中文 Suno 提示词**：
+
+```
+中国水墨风格曹魏废墟场景背景音乐，
+洛阳焚城后的灰烬世界，沉默的悲伤，不是绝望是回望，
+主要乐器为大提琴泛音和风吹灰烬的细微纹理，
+极远处偶尔传来铜钟残响，纸燃烧的微爆声融入音景，
+D羽五声音阶，48 BPM，极缓慢，几乎停滞的时间，
+可无缝循环，无歌词，无人声，
+灰烬色，掉落的诗稿在风中飘散
+```
+
+**英文 Udio 提示词**：
+
+```
+Cao Wei dynasty ruined city background music,
+Luoyang after the fire, ash-covered silence, mournful but not desperate,
+featured instruments: cello harmonics, wind-blown ash texture, distant bronze bell decay, subtle paper crackle,
+D yu pentatonic, 48 BPM, extremely slow, almost frozen time,
+seamless loop, no vocals, no lyrics,
+ash-colored, scattered poems drifting in wind
+```
+
+**文件名**：`bgm_07_huiXu_caoWeiRuins.wav`
+
+---
+
+## Phase 3 循环点速查
+
+| # | 曲名 | BPM | Loop Start | Loop End | 备注 |
+| :--: | --- | :--: | --- | --- | --- |
+| 06 | 字沉 | 54 | 第 2 小节 | 第 22 小节 | 石磬单音标识头尾 |
+| 07 | 灰叙 | 48 | 0:08 | 结束前 8 秒 | 任意段可循环，需 crossfade |
+
+---
+
+## Phase 3 BGM 与铜声的配合
+
+| BGM | 可能同时触发的铜声 | 注意 |
+| --- | --- | --- |
+| 字沉 | S04 嗒、S05 当—— | 铜声触发时 BGM 闪避 1-2dB，石磬避开「嗒」频率 |
+| 灰叙 | 无（烬城/诗起无铜声） | 纯氛围层，保持空旷感 |

@@ -1,10 +1,10 @@
-# 铜声·识洛 — 铜声音效提示词（Phase 2 专用）
+# 铜声·识洛 — 铜声音效提示词（Phase 2-3）
 
-> 从全游戏 14 个音效中裁出 Phase 2 所需的 5 个。其余音效见 [`铜声音效提示词.md`](铜声音效提示词.md)。
+> 从全游戏 14 个音效中裁出 Phase 2+3 所需的 7 个。其余音效见 [`铜声音效提示词.md`](铜声音效提示词.md)。
 
 ---
 
-## Phase 2 音效清单
+## Phase 2 音效（5个）
 
 | ID | 音效名 | 类型 | 章节 | 形式 | 含义 | 生成方式 |
 | :--: | ------ | --- | --- | --- | --- | -------- |
@@ -110,3 +110,61 @@ minimal reverb, sub-bass, no music, no melody, cinematic
 2. **高**：S01 咕嘟（二头肌头核心反馈）
 3. **中**：S02 嗡——、S03 叮——叮——（周王城反馈）
 4. **低**：S12 封面心跳（氛围层，可后续补充）
+
+---
+
+## Phase 3 新增音效（2个）
+
+| ID | 音效名 | 类型 | 章节 | 形式 | 含义 | 生成方式 |
+| :--: | ------ | --- | --- | --- | --- | -------- |
+| S04 | 嗒 | 铜声4 | 东汉·地听 | 铜丸坠落 | 人为参与 | Suno |
+| S05 | 当—— | 铜声5 | 东汉·地听 | 铜丸入蟾蜍口 | 自动记忆 | Suno |
+
+---
+
+## S04 嗒 — 铜丸坠落
+
+- **章节**：东汉·地听
+- **触发**：铜丸从龙口坠落，下落过程结束瞬间
+- **音色**：短促、清脆、金属碰撞感，小球撞击硬表面的「嗒」声，
+  比「叮」更钝更短，像一个实心铜球落在石板上
+- **Suno 提示词**：
+
+```
+A small solid bronze ball dropping onto a stone surface,
+short crisp metallic click sound, one single tap,
+very short decay, dry and percussive,
+no reverb, close-mic, no music, no melody, single event, cinematic
+```
+
+- **时长**：约 0.3s
+- **文件命名**：`s04_da_ballDrop.wav`
+
+---
+
+## S05 当—— — 铜丸入蟾蜍口
+
+- **章节**：东汉·地听
+- **触发**：铜丸坠入蟾蜍口中
+- **音色**：比 S04 更长、更低沉、有共鸣腔的回声，
+  像铜丸进入一个空心金属容器后的震荡回响，
+  不是编钟那种悠长的音——它更短、更闷、像被"吞"了进去
+- **Suno 提示词**：
+
+```
+A bronze ball falling into a hollow metal toad-shaped vessel,
+low metallic resonance with a short decay,
+muffled ringing as if swallowed by the container,
+deep and slightly ominous, ancient scientific instrument feel,
+minimal reverb, close-mic, no music, no melody, single event, cinematic
+```
+
+- **时长**：约 1.5s
+- **文件命名**：`s05_dang_ballInToad.wav`
+
+---
+
+## Phase 3 音效优先级
+
+1. **最高**：S04 嗒（地听章核心反馈——铜丸坠落）
+2. **高**：S05 当——（地听章高潮反馈——入蟾蜍口）
