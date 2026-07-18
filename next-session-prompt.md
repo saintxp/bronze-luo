@@ -131,7 +131,8 @@ src/
 - 按 `资产/AI资产构图规范.md` 先母图再裁切
 - 按 `资产/Seedream图片提示词_Phase2.md` 生成 Phase 2 静态图
 - 按 `资产/Seedance视频提示词_全章节.md` 生成 16 段视频（注意 V03/V04 黑底 additive）
-- 按 `资产/铜声音效提示词.md` 生成 14 个音效
+- 按 `资产/铜声音效提示词_Phase2.md` 生成 Phase 2 所需 5 个音效
+- 按 `资产/BGM提示词_Phase2.md` 生成 Phase 2 所需 6 轨 BGM
 - 优先 P0 谜题配对件（教学关占位图 → 正式图）
 
 ---
@@ -159,7 +160,9 @@ src/
 | 图片提示词 v2 | `资产/Seedream图片提示词_Phase2.md` | Phase 2 静态图提示词（已按 Seedream 比例整理） |
 | 视频提示词 v2 | `资产/Seedance视频提示词_全章节.md` | 16 段视频提示词 + 抠像/通道判定 |
 | 音效提示词 | `资产/铜声音效提示词.md` | 11 铜声 + 3 环境/UI 音效 Suno 提示词 |
-| BGM 规划 | `资产/BGM规划方案.md` | 10 轨章节主题制方案（已确认方案 A） |
-| BGM 提示词 | `资产/BGM提示词_全章节.md` | 10 轨 Suno/Udio 完整提示词 |
+| 音效提示词 Phase2 | `资产/铜声音效提示词_Phase2.md` | Phase 2 所需 5 个音效 |
+| BGM 规划 | `资产/BGM规划方案.md` | 11 轨章节主题制方案（已确认方案 A） |
+| BGM 提示词 | `资产/BGM提示词_全章节.md` | 11 轨 Suno/Udio 完整提示词 |
+| BGM 提示词 Phase2 | `资产/BGM提示词_Phase2.md` | Phase 2 所需 6 轨 BGM |
 | BGM 循环点 | `资产/BGM循环点说明.md` | BPM、调式、循环段标记 |
 | 项目约定 | `CLAUDE.md` | 设计约束、色板、人物表 |

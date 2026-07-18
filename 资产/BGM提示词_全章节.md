@@ -1,6 +1,6 @@
-# 铜声·识洛 — BGM 提示词（方案 A · 10 轨）
+# 铜声·识洛 — BGM 提示词（方案 A · 11 轨）
 
-> **已确认**：采用章节主题制，全游戏 10 轨 BGM。  
+> **已确认**：采用章节主题制，全游戏 11 轨 BGM（10 章节轨 + 1 开始界面轨）。  
 > **生成工具**：主用 Suno AI（中文提示词），精修可用 Udio（英文提示词）。  
 > **输出规格**：每轨 2-3 分钟可循环体，WAV 母版 + OGG 运行版，响度 -16 LUFS。
 
@@ -33,6 +33,42 @@
 ---
 
 ## 二、逐轨提示词
+
+### 00 开始界面 · 《封题》
+
+- **章节**：开始界面 / 登陆界面 / 首页
+- **时长**：2:00
+- **BPM**：56
+- **调式**：G 商五声音阶
+- **乐器**：古琴散音、埙长音、纸张低频震动、远处编钟残响
+- **情绪**：神秘、温暖、邀请，像古册封面在黑暗中呼吸
+- **循环**：以一个长呼吸式的古琴/埙音起止，任意位置可切入
+
+**中文 Suno 提示词**：
+
+```
+中国水墨风格游戏开始界面背景音乐，
+古旧集章册封面在暗处呼吸的神秘氛围，温暖而克制，
+主要乐器为古琴散音和埙长音，加入极淡的纸张低频震动与远处编钟残响，
+G商五声音阶，56 BPM，极慢，几乎没有明显旋律，
+可无缝循环，无歌词，无人声，
+像在邀请玩家打开一本沉睡的册子
+```
+
+**英文 Udio 提示词**：
+
+```
+Chinese ink-wash game title screen background music,
+ancient stamp album cover breathing in darkness, warm and restrained,
+featured instruments: guqin open strings, xun long tones, very subtle paper low-frequency rumble, distant bronze bell decay,
+G shang pentatonic, 56 BPM, extremely slow, almost no melody,
+seamless loop, no vocals, no lyrics,
+like inviting the player to open a sleeping album
+```
+
+**文件名**：`bgm_00_fengTi_titleScreen.wav`
+
+---
 
 ### 01 教学关 · 《指触》
 
@@ -397,16 +433,17 @@ fade in/out, no vocals, no lyrics
 
 按开发优先级生成：
 
-1. 教学关《指触》（最早 playable 需要）
-2. 序章《册启》
-3. 壹·二里头《铸火》
-4. 贰·周王城《礼序》
-5. 灰页《悬置》
-6. 叁·东汉《星夜》
-7. 肆·曹魏《烬余》
-8. 伍·北魏《镜迁》
-9. 陆·隋唐《盛极》
-10. 尾声《合册》（最后实现）
+1. 开始界面《封题》（玩家第一眼看到）
+2. 教学关《指触》（最早 playable 需要）
+3. 序章《册启》
+4. 壹·二里头《铸火》
+5. 贰·周王城《礼序》
+6. 灰页《悬置》
+7. 叁·东汉《星夜》
+8. 肆·曹魏《烬余》
+9. 伍·北魏《镜迁》
+10. 陆·隋唐《盛极》
+11. 尾声《合册》（最后实现）
 
 ---
 
