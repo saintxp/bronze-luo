@@ -4,7 +4,7 @@
 
 ---
 
-## 铜声·识洛 — Phase 2 进行中
+## 铜声·识洛 — Phase 2 MVP 已可玩 ✅
 
 ### 上下文速览
 
@@ -13,9 +13,9 @@ Gorogoa-like 2D 拼图独立游戏，HTML5 Canvas + TypeScript + Vite。5 层 Ca
 ### 当前最新提交
 
 ```
-7713d7d test: 新增 InkPaintingUtils + GSAP 映射单元测试
-eae39df feat: VFX 粒子系统集成 (Proton 7.1.5)
-ca22851 feat: InkPainting 移植 + GSAP 动画集成 + 色彩常量
+751bff6 fix: 章节过渡dt单位 + 画布居中 + 页面暖纸背景
+a3d703b feat: 章节淡入淡出切换 + VFX粒子接入 + 印章遮挡/二次拖拽修复
+970c114 fix: improve code quality — no non-null assertions, no nested ternaries
 ```
 
 ### 构建验证
@@ -23,86 +23,55 @@ ca22851 feat: InkPainting 移植 + GSAP 动画集成 + 色彩常量
 ```bash
 cd "E:/projects/铜声·识洛"
 npm install --include=dev    # ⚠️ npm 11 必须加 --include=dev
-npx tsc --noEmit             # 应输出零错误
-npx vitest run               # 应输出 34/34 通过 (原 26 + 新 8)
+npx tsc --noEmit             # 零错误
+npx vitest run               # 34/34 通过
+npm run build                # 235KB (gzip 72KB)
+npm run dev -- --port 5173 --strictPort   # 开发服务器（用户固定端口 5173）
 ```
 
 ---
 
-## 本会话完成的 3 条主线
+## ✅ Phase 2 MVP 状态：全流程可玩
 
-### ✅ 1. InkPainting 移植 → 印章/竖排/纸纹
+**E2E 已验证两遍完整通关**（agent-browser + CDP 真实输入）：
 
-**已完成：**
+| 章节 | 交互 | 验证 |
+| ------ | ------ | :----: |
+| 教学关 L1 | 拖门板入门框 | ✅ |
+| 教学关 L2 | 平移嵌套对准星标 | ✅ |
+| 教学关 L3 | 弧形拖旋转齿轮 | ✅ |
+| 序章 | 长按封面3s → 洛河滑动400px → 指纹 → 铜液吞没(咕嘟+copperSplash) | ✅ |
+| 壹·二里头 | 拖右半范合拢 → 龙身纹 + 铸印 + 咕嘟 | ✅ |
+| 灰页·悬置商 | 5层裂缝嵌套（首层自动，4次拖拽）→ 星图玄鸟 + 悬置印 | ✅ |
+| 贰·周王城 | 日晷拖200px → 鼎拖300px → **孔老圆心** → 三桩点击 → 宅兹印 → 调钟共振(嗡——+bellSoundwave) → 牡丹一环 → 礼成印 → 问道自动序列(叮——叮——) | ✅ |
+| DemoEnd | 试玩结束 + 合册印 + 回到首页（可循环） | ✅ |
 
-| 文件 | 内容 |
-| --- | --- |
-| `src/ui/InkPaintingUtils.ts` | 🆕 从 InkPainting (MIT) 移植的核心模块 |
-| `src/ui/StampEffect.ts` | 改用朱砂印章渲染（阴刻/阳刻 + multiply 混合 + 边缘磨损） |
-| `src/ui/DefinitionPopup.ts` | 新增竖排文字模式 (`layout: 'vertical'`) |
-
-**移植的功能：**
-
-- `renderSeal(config)` — 朱砂印章渲染（阴刻/阳刻 + 轮廓变形 + 边缘破损 + 磨损纹理）
-- `drawSealImpression(ctx, seal, x, y)` — multiply 混合绘制印章印迹
-- `generatePaperTexture(config)` — 宣纸纹理（晕染 + 颗粒 + 纤维 + 暗角）
-- `drawVerticalText(ctx, x, y, config)` — 竖排题词（从右到左，带手写抖动）
-- `makeSeededRng(id)` — 确定性种子随机数（保证纹理一致性）
-
-### ✅ 2. GSAP 动画集成
-
-**已完成：**
-
-`src/engine/AnimationEngine.ts` 内部切换为 GSAP，保持原有 Tween/KeyframeSequence API 不变。
-
-新增 GSAP 方法：
-
-- `animateTo(target, vars)` — 多属性同时动画
-- `animateFrom(target, vars)` — 从指定值动画到当前值
-- `animateTimeline(buildFn)` — 时间线序列动画
-- `toGsapEase(name)` — 游戏缓动名 → GSAP ease 字符串映射
-
-### ✅ 3. Proton 粒子系统
-
-**已完成：**
-
-`src/engine/VFXParticleManager.ts` — 🆕 5 种青铜色粒子效果：
-
-| ID | 效果 | 使用场景 | 颜色 |
-| --- | --- | --- | --- |
-| `copperSplash` | 铜液飞溅 | 序章 + 二里头 | BRONZE.copper → gold |
-| `bellSoundwave` | 编钟声波 | 周·礼成 | BRONZE.green → ritualWhite |
-| `towerEmbers` | 塔焚火星 | 北魏·烬 | BRONZE.vermillion → rust |
-| `mirrorShards` | 镜碎碎片 | 唐·千秋镜 | BRONZE.cinnabar → limeWhite |
-| `peonyPetals` | 牡丹花瓣 | 唐·归田 | BRONZE.cinnabar → gold |
-
-用法：
-
-```typescript
-const particles = new VFXParticleManager(vfxCanvas);
-particles.trigger('copperSplash', 960, 540);
-```
-
-### ✅ 其他
-
-| 改动 | 文件 |
-| --- | --- |
-| 色彩常量 | `constants.ts`: `CHAPTER_PALETTE` (9章) + `INK` (InkView) + `BRONZE` (青铜色板) |
-| 单元测试 | `src/tests/inkpainting.test.ts`: makeSeededRng + toGsapEase (8 tests) |
-| 工作区清理 | 未提交改动已 commit |
+青铜音已触发：咕嘟(序章/二里头)、嗡——(礼成)、叮——叮——(问道)。
 
 ---
 
-## 已安装的 6 个工具
+## 已修复的关键 bug（本会话）
 
-| # | 工具 | 状态 | 用途 |
-| :--: | ------ | :--: | ------ |
-| 1 | **proton-engine** ^7.1.5 | ✅ 已集成 | 粒子引擎（VFXParticleManager） |
-| 2 | **gsap** ^3.15.0 | ✅ 已集成 | 动画引擎（AnimationEngine） |
-| 3 | **stage-js** ^1.0.2 | ⏳ 未使用 | Canvas UI 组件化（可做 HUD/菜单） |
-| 4 | **liquid-glass-canvas** ^0.1.0 | ⏳ 未使用 | WebGL 玻璃折射（灰页光晕/水面） |
-| 5 | **Design Skill** | ✅ 可用 | UI 方向锁定 + 截图审查 |
-| 6 | **InkPainting** | ✅ 已移植 | 源码已获取并移植，不再需要 clone |
+| bug | 根因 | 修复 |
+| ----- | ------ | ------ |
+| 章节过渡不可见 | `main.ts` 计时器把 ms 当秒 ×1000 | `transitionTimer += dt` |
+| 右侧黑边 | 画布 `position:absolute` 脱离文档流，flex 居中无效 | CanvasManager.resize 显式 left/top 偏移 |
+| 页面深色背景违和 | body `#2a2723` | → `var(--ink-bg)` 暖宣纸色 |
+| 印章跨章遮挡 | UI Canvas 层从不自动清理 | 主循环每帧 `clearLayer("ui")`（上会话） |
+| 二次拖拽失效 | DragHandler detach 不清元素/回调 | detach() 全清理（上会话） |
+
+### 测试环境注意事项（非游戏 bug）
+
+- **rAF 节流**：Chrome 窗口被判定 hidden 时游戏循环暂停。E2E 启动参数必须加：
+
+  ```
+  --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding
+  ```
+
+  真实玩家可见标签页不受影响（暂停其实是合理行为）。
+- **pi-lens autofix 会重排已修改文件**（引号/缩进），触发 vite HMR 整页刷新——E2E 长跑时注意它会重置游戏状态。
+- **agent-browser open 会挂起**：改用 `chrome.exe --remote-debugging-port=9222` 手动启动 + `agent-browser connect 9222`。
+- **eval 派发鼠标事件可靠**：`document.querySelectorAll('canvas')[1]` 是 puzzle 层，用 `getBoundingClientRect()` 实时换算游戏坐标→页面坐标，dispatchEvent mousedown/mousemove/mouseup 即可模拟拖拽。
 
 ---
 
@@ -110,92 +79,60 @@ particles.trigger('copperSplash', 960, 540);
 
 ```
 src/
-├── main.ts                 # 入口 + 引导
+├── main.ts                 # 入口 + ChapterManager（fade过渡路由6章）
 ├── engine/
-│   ├── CanvasManager.ts    # 5 层 Canvas 堆栈管理
+│   ├── CanvasManager.ts    # 5层Canvas（显式偏移居中）
 │   ├── LayerRenderer.ts    # 层渲染 API
-│   ├── DragHandler.ts      # 拖拽交互（鼠标+触屏）
+│   ├── DragHandler.ts      # 拖拽（element/layer双模式，detach全清理）
 │   ├── HitDetector.ts      # 碰撞/吸附检测
-│   ├── AnimationEngine.ts  # ✨ Tween + GSAP 双引擎
+│   ├── AnimationEngine.ts  # Tween + GSAP 双引擎
 │   ├── ImageRenderer.ts    # 图片绘制工具
-│   └── VFXParticleManager.ts  # 🆕 Proton 粒子管理
-├── puzzle/
-│   ├── PuzzleBase.ts       # 抽象拼图接口
-│   ├── AlignmentPuzzle.ts  # 拖拽对位（90% 拼图）
-│   ├── NestPuzzle.ts       # 嵌套层对位（灰页用）
-│   └── RotationPuzzle.ts   # 旋转匹配（瘦骨用）
-├── chapters/               # 章节实现
-├── assets/
-│   ├── AssetManifest.ts    # 资产路径清单（120+ 条）
-│   ├── AssetLoader.ts      # 章节级懒加载
-│   └── VideoTrigger.ts     # Seedance 视频触发器
-├── audio/
-│   ├── AudioManager.ts     # Web Audio API 封装
-│   └── BronzeSound.ts      # 11 种铜声触发
-├── ui/
-│   ├── StampEffect.ts      # ✨ 朱砂印章（InkPainting 移植）
-│   ├── DefinitionPopup.ts  # ✨ 释义弹窗（含竖排模式）
-│   ├── InkPaintingUtils.ts # 🆕 印章/纸纹/竖排文字工具
-│   ├── MapOverlay.ts       # 洛阳古地图
-│   └── TutorialOverlay.ts  # 教程引导
-├── state/                  # 游戏状态管理
-├── tests/                  # ✨ 34 tests (alignment + nest + inkpainting)
-└── utils/
-    ├── math.ts             # 向量/碰撞/吸附数学
-    ├── easing.ts           # 缓动函数
-    ├── constants.ts        # ✨ CHAPTER_PALETTE + INK + BRONZE
-    ├── EventBus.ts         # 事件总线
-    └── logger.ts           # 调试日志
+│   └── VFXParticleManager.ts  # Proton 粒子（5种青铜色效果）
+├── puzzle/                 # PuzzleBase + Alignment + Nest + Rotation
+├── chapters/               # ChapterBase + Tutorial/Prologue/Erlitou/Grey/Zhou/DemoEnd
+├── state/GameState.ts      # 全局状态单例
+├── assets/                 # AssetManifest + AssetLoader + VideoTrigger
+├── audio/                  # AudioManager + BronzeSound（11青铜音）
+├── ui/                     # StampEffect(朱砂印) + DefinitionPopup(竖排) + InkPaintingUtils + MapOverlay + TutorialOverlay
+├── tests/                  # 34 tests (alignment 12 + nest 14 + inkpainting 8)
+└── utils/                  # constants(CHAPTER_PALETTE/INK/BRONZE) + math + easing + EventBus + logger
 ```
 
 ---
 
 ## 下一步任务清单
 
-### 🥇 Phase 2 核心开发
+### 🥇 视觉增强（本会话进行中）
 
-1. **教学关 L1-L3 可玩化**
-   - 用 `ImageRenderer` + 占位图渲染教学关背景
-   - 在 `ChapterTutorial.ts` 中接入 `AlignmentPuzzle` + `NestPuzzle` + `RotationPuzzle`
-   - 添加 `TutorialOverlay` 引导提示
-   - 目标：3 个教学关可在浏览器中完整游玩
+1. **宣纸纹理应用到 UI Canvas**
+   - 用 `InkPaintingUtils.generatePaperTexture()` 做 UI 背景
+   - 章节切换时的纸纹过渡（替代纯黑 fade？）
 
-2. **序章 → 周王城 MVP**
-   - 序章：合册动画 + 地图入口
-   - 二里头：陶范合拢谜题 + `copperSplash` 粒子
-   - 周王城：孔老圆心对位 + `bellSoundwave` 粒子
-   - 目标：~30 分钟可玩体验
-
-### 🥈 视觉增强
-
-1. **集成 liquid-glass-canvas**
+2. **集成 liquid-glass-canvas**（已装 ^0.1.0）
    - 灰页光晕效果（WebGL 玻璃折射）
-   - 水面倒影（东汉·纸成）
-   - 铜镜反射（北魏·衣归）
+   - 后续：水面倒影（东汉·纸成）、铜镜反射（北魏·衣归）
 
-2. **集成 stage-js**
+3. **集成 stage-js**（已装 ^1.0.2）
    - HUD 组件化（暂停菜单、设置面板）
    - 替代过程化 ctx.fillRect
 
-3. **宣纸纹理应用到 UI Canvas**
-   - 使用 `generatePaperTexture()` 作为 UI 背景
-   - 章节切换时的纸纹过渡
+### 🥈 Phase 3 准备（东汉→曹魏，~30h）
+
+- 字立/地听/纸成/托 + 烬城/诗起（见 `代码/代码编写计划_v2_0.md`）
 
 ### 🥉 资产生成
 
-1. **生成 Seedream 资产**
-   - 按 `资产/AI资产构图规范.md` 先母图再裁切
-   - 从教学关 L1-L3 占位图开始
-   - 优先 P0 谜题的配对件
+- 按 `资产/AI资产构图规范.md` 先母图再裁切
+- 优先 P0 谜题配对件（教学关占位图 → 正式图）
 
 ---
 
 ## 关键设计约束（CLAUDE.md 摘录）
 
 - **帧预算**：51 帧（45 正式章 + 6 教学关）硬上限
-- **交互范式**：90%+ 拖拽对位。唯一异类交互 = 瘦骨旋转
+- **交互范式**：90%+ 拖拽对位。唯一异类 = 瘦骨旋转
 - **跨章禁止**：不要求玩家记忆前章内容
-- **侧写不告**：18 角色不出现面部、不标注姓名，≥2 层视觉线索
+- **侧写不告**：18 角色不露正脸不标名，≥2 层视觉线索
 - **向下按姿势链**：二里头合范→周按桩→东汉按纸→曹魏抹灰→北魏覆手→隋唐掌→尾声合册
 
 ---
