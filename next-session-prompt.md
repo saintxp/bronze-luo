@@ -13,7 +13,7 @@ Gorogoa-like 2D 拼图独立游戏，HTML5 Canvas + TypeScript + Vite。5 层 Ca
 ### 当前最新提交
 
 ```
-50d6368 feat: add pause/settings buttons for HUD menu
+f33c5ba refactor: remove in-game pause button, keep ESC-only menu
 ```
 
 ### 构建验证
