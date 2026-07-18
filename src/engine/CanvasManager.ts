@@ -131,6 +131,34 @@ export class CanvasManager {
 	}
 
 	/**
+	 * Display rect of the centered canvas block within the container (CSS px).
+	 * Used by overlays (e.g. stage-js HUD) that must align 1:1 with the game canvas.
+	 */
+	getDisplayRect(): {
+		left: number;
+		top: number;
+		width: number;
+		height: number;
+	} {
+		if (!this.container) {
+			return { left: 0, top: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT };
+		}
+		const rect = this.container.getBoundingClientRect();
+		const scale = Math.min(
+			rect.width / CANVAS_WIDTH,
+			rect.height / CANVAS_HEIGHT,
+		);
+		const width = Math.round(CANVAS_WIDTH * scale);
+		const height = Math.round(CANVAS_HEIGHT * scale);
+		return {
+			left: Math.round((rect.width - width) / 2),
+			top: Math.round((rect.height - height) / 2),
+			width,
+			height,
+		};
+	}
+
+	/**
 	 * Get a managed canvas by layer name.
 	 */
 	getLayer(layer: CanvasLayer): ManagedCanvas | undefined {

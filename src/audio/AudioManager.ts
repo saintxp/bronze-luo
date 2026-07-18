@@ -6,85 +6,117 @@
  * Future: Will load and play .mp3/.wav assets.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from "../utils/logger";
 
-const log = createLogger('AudioManager');
+const log = createLogger("AudioManager");
 
 export interface PlayToneOptions {
-  frequency: number;
-  duration: number;
-  type?: OscillatorType;
-  volume?: number;
-  delay?: number;
+	frequency: number;
+	duration: number;
+	type?: OscillatorType;
+	volume?: number;
+	delay?: number;
 }
 
 export class AudioManager {
-  private ctx: AudioContext | null = null;
+	private ctx: AudioContext | null = null;
+	private master: GainNode | null = null;
+	private _muted = false;
 
-  private getContext(): AudioContext {
-    if (!this.ctx) {
-      this.ctx = new AudioContext();
-    }
-    // Resume if suspended (browser autoplay policy)
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
-    return this.ctx;
-  }
+	private getContext(): AudioContext {
+		if (!this.ctx) {
+			this.ctx = new AudioContext();
+		}
+		// Resume if suspended (browser autoplay policy)
+		if (this.ctx.state === "suspended") {
+			this.ctx.resume();
+		}
+		return this.ctx;
+	}
 
-  /**
-   * Play a single tone.
-   */
-  playTone(options: PlayToneOptions): void {
-    try {
-      const ctx = this.getContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+	/** Master gain — all tones route through here for global mute/volume. */
+	private getMaster(): GainNode {
+		const ctx = this.getContext();
+		if (!this.master) {
+			this.master = ctx.createGain();
+			this.master.gain.value = this._muted ? 0 : 1;
+			this.master.connect(ctx.destination);
+		}
+		return this.master;
+	}
 
-      const startTime = ctx.currentTime + (options.delay ?? 0);
+	get muted(): boolean {
+		return this._muted;
+	}
 
-      osc.type = options.type ?? 'sine';
-      osc.frequency.setValueAtTime(options.frequency, startTime);
-      gain.gain.setValueAtTime(options.volume ?? 0.3, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + options.duration);
+	/** Global mute toggle for the settings panel. */
+	setMuted(muted: boolean): void {
+		this._muted = muted;
+		if (this.master) {
+			this.master.gain.setTargetAtTime(
+				muted ? 0 : 1,
+				this.getContext().currentTime,
+				0.02,
+			);
+		}
+	}
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+	/**
+	 * Play a single tone.
+	 */
+	playTone(options: PlayToneOptions): void {
+		try {
+			const ctx = this.getContext();
+			const osc = ctx.createOscillator();
+			const gain = ctx.createGain();
 
-      osc.start(startTime);
-      osc.stop(startTime + options.duration);
-    } catch (e) {
-      log.warn('Audio playback failed:', e);
-    }
-  }
+			const startTime = ctx.currentTime + (options.delay ?? 0);
 
-  /**
-   * Play a frequency sweep (for effects like "copper liquid bubbling").
-   */
-  playSweep(fromFreq: number, toFreq: number, duration: number): void {
-    try {
-      const ctx = this.getContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+			osc.type = options.type ?? "sine";
+			osc.frequency.setValueAtTime(options.frequency, startTime);
+			gain.gain.setValueAtTime(options.volume ?? 0.3, startTime);
+			gain.gain.exponentialRampToValueAtTime(
+				0.001,
+				startTime + options.duration,
+			);
 
-      const startTime = ctx.currentTime;
+			osc.connect(gain);
+			gain.connect(this.getMaster());
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(fromFreq, startTime);
-      osc.frequency.linearRampToValueAtTime(toFreq, startTime + duration);
-      gain.gain.setValueAtTime(0.2, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+			osc.start(startTime);
+			osc.stop(startTime + options.duration);
+		} catch (e) {
+			log.warn("Audio playback failed:", e);
+		}
+	}
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+	/**
+	 * Play a frequency sweep (for effects like "copper liquid bubbling").
+	 */
+	playSweep(fromFreq: number, toFreq: number, duration: number): void {
+		try {
+			const ctx = this.getContext();
+			const osc = ctx.createOscillator();
+			const gain = ctx.createGain();
 
-      osc.start(startTime);
-      osc.stop(startTime + duration);
-    } catch (e) {
-      log.warn('Sweep playback failed:', e);
-    }
-  }
+			const startTime = ctx.currentTime;
 
-  /** Singleton instance */
-  static readonly instance = new AudioManager();
+			osc.type = "sine";
+			osc.frequency.setValueAtTime(fromFreq, startTime);
+			osc.frequency.linearRampToValueAtTime(toFreq, startTime + duration);
+			gain.gain.setValueAtTime(0.2, startTime);
+			gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+			osc.connect(gain);
+			gain.connect(this.getMaster());
+
+			osc.start(startTime);
+			osc.stop(startTime + duration);
+		} catch (e) {
+			log.warn("Sweep playback failed:", e);
+		}
+	}
+
+	/** Singleton instance */
+	static readonly instance = new AudioManager();
 }

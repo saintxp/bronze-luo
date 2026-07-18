@@ -13,9 +13,7 @@ Gorogoa-like 2D 拼图独立游戏，HTML5 Canvas + TypeScript + Vite。5 层 Ca
 ### 当前最新提交
 
 ```
-751bff6 fix: 章节过渡dt单位 + 画布居中 + 页面暖纸背景
-a3d703b feat: 章节淡入淡出切换 + VFX粒子接入 + 印章遮挡/二次拖拽修复
-970c114 fix: improve code quality — no non-null assertions, no nested ternaries
+7b433d6 feat: stage-js HUD pause menu with mute toggle
 ```
 
 ### 构建验证
@@ -25,15 +23,15 @@ cd "E:/projects/铜声·识洛"
 npm install --include=dev    # ⚠️ npm 11 必须加 --include=dev
 npx tsc --noEmit             # 零错误
 npx vitest run               # 34/34 通过
-npm run build                # 235KB (gzip 72KB)
+npm run build                # 311KB (gzip 94KB)
 npm run dev -- --port 5173 --strictPort   # 开发服务器（用户固定端口 5173）
 ```
 
 ---
 
-## ✅ Phase 2 MVP 状态：全流程可玩
+## ✅ Phase 2 MVP 状态：全流程可玩 + HUD 完成
 
-**E2E 已验证两遍完整通关**（agent-browser + CDP 真实输入）：
+**E2E 已验证完整通关**（agent-browser + CDP 真实输入）：
 
 | 章节 | 交互 | 验证 |
 | ------ | ------ | :----: |
@@ -48,12 +46,17 @@ npm run dev -- --port 5173 --strictPort   # 开发服务器（用户固定端口
 
 青铜音已触发：咕嘟(序章/二里头)、嗡——(礼成)、叮——叮——(问道)。
 
+**新增 stage-js HUD**：ESC 暂停菜单（继续 / 重玩本章 / 回到首页 / 音效开关），宣纸面板 + 水墨遮罩，与游戏画布 1:1 对齐，支持 pointerEvents 自动启停。
+
 ---
 
 ## 已修复的关键 bug（本会话）
 
 | bug | 根因 | 修复 |
 | ----- | ------ | ------ |
+| stage-js 点击穿透到背景 | memoizeDraw Sprite 默认无命中尺寸 | `.size(w,h)` 显式设置 |
+| stage-js 菜单与游戏画布未对齐 | stage-js viewbox 默认左上对齐 | HudMenu.resize 同步 CanvasManager.getDisplayRect |
+| 音效开关标签不刷新 | 外部状态变化未标记组件 dirty | click 后 `pin("alpha")` 强制 prerender |
 | 章节过渡不可见 | `main.ts` 计时器把 ms 当秒 ×1000 | `transitionTimer += dt` |
 | 右侧黑边 | 画布 `position:absolute` 脱离文档流，flex 居中无效 | CanvasManager.resize 显式 left/top 偏移 |
 | 页面深色背景违和 | body `#2a2723` | → `var(--ink-bg)` 暖宣纸色 |
@@ -93,7 +96,7 @@ src/
 ├── state/GameState.ts      # 全局状态单例
 ├── assets/                 # AssetManifest + AssetLoader + VideoTrigger
 ├── audio/                  # AudioManager + BronzeSound（11青铜音）
-├── ui/                     # StampEffect(朱砂印) + DefinitionPopup(竖排) + InkPaintingUtils + MapOverlay + TutorialOverlay
+├── ui/                     # StampEffect(朱砂印) + DefinitionPopup(竖排) + InkPaintingUtils + MapOverlay + TutorialOverlay + HudMenu(stage-js)
 ├── tests/                  # 34 tests (alignment 12 + nest 14 + inkpainting 8)
 └── utils/                  # constants(CHAPTER_PALETTE/INK/BRONZE) + math + easing + EventBus + logger
 ```
@@ -102,16 +105,16 @@ src/
 
 ## 下一步任务清单
 
-### 🥇 视觉增强（本会话部分完成）
+### 🥇 Phase 2 视觉增强 — 已完成 ✅
 
-1. **章节切换纸纹过渡** ✅ 已完成（d42227e）
+1. **章节切换纸纹过渡** ✅（d42227e）
    - main.ts 过渡遮罩由纯黑改为宣纸纹理，翻页隐喻
-2. **灰页 WebGL 玻璃光晕** ✅ 已完成（d42227e）
+2. **灰页 WebGL 玻璃光晕** ✅（d42227e）
    - ChapterGrey 集成 liquid-glass-canvas，折射透镜跟随裂缝
    - 后续可复用：水面倒影（东汉·纸成）、铜镜反射（北魏·衣归）
-3. **集成 stage-js**（已装 ^1.0.2）⏳ 未开始
-   - HUD 组件化（暂停菜单、设置面板）
-   - 替代过程化 ctx.fillRect
+3. **stage-js HUD 暂停菜单** ✅
+   - 继续 / 重玩本章 / 回到首页 / 音效开关
+   - 宣纸面板 + 水墨遮罩，与游戏画布 1:1 对齐
 
 ### 🥈 Phase 3 准备（东汉→曹魏，~30h）
 

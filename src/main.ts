@@ -24,6 +24,7 @@ import { initBronzeSounds } from "./audio/BronzeSound";
 import { StampEffect } from "./ui/StampEffect";
 import { DefinitionPopup } from "./ui/DefinitionPopup";
 import { VideoTrigger } from "./assets/VideoTrigger";
+import { HudMenu } from "./ui/HudMenu";
 import { gameState } from "./state/GameState";
 import { eventBus } from "./utils/EventBus";
 import { createLogger, setLogLevel } from "./utils/logger";
@@ -50,6 +51,7 @@ class ChapterManager {
 	private transitionAlpha = 0; // 0→1 during fade-out
 	private transitionPhase: "idle" | "fadeOut" | "fadeIn" = "idle";
 	private transitionTimer = 0;
+	private paused = false;
 
 	constructor(chapters: ChapterBase[], canvasManager: CanvasManager) {
 		this.chapters = chapters;
@@ -71,6 +73,23 @@ class ChapterManager {
 
 	start(): void {
 		this.goToChapter(0);
+	}
+
+	/** Pause/resume chapter updates (HUD menu). */
+	setPaused(paused: boolean): void {
+		this.paused = paused;
+	}
+
+	/** Restart the current chapter in place (exit → init → enter). */
+	restartChapter(): void {
+		const idx = this.currentIndex;
+		if (idx < 0 || idx >= this.chapters.length) return;
+		this.chapters[idx].exit();
+		this.canvasManager.clearAll();
+		gameState.enterChapter(this.chapters[idx].id);
+		this.chapters[idx].init();
+		this.chapters[idx].enter();
+		log.info(`Restarted chapter: ${this.chapters[idx].id}`);
 	}
 
 	/** Return to the start page — exit current chapter and clear canvases. */
@@ -134,6 +153,7 @@ class ChapterManager {
 	}
 
 	update(dt: number): void {
+		if (this.paused) return;
 		// Handle transition animation
 		if (this.isTransitioning) {
 			this.transitionTimer += dt; // dt is in ms (rAF timestamp delta)
@@ -232,6 +252,26 @@ function init(): void {
 	// 6. Chapter manager
 	const chapterManager = new ChapterManager(chapters, canvasManager);
 
+	// 6.5 HUD menu (stage-js) — pause menu / settings panel
+	const appEl = document.getElementById("app");
+	if (!appEl) throw new Error("App container #app not found");
+	const hud = new HudMenu(appEl, {
+		onPauseChange: (paused) => chapterManager.setPaused(paused),
+		onRestartChapter: () => chapterManager.restartChapter(),
+		onHome: () => {
+			chapterManager.setPaused(false);
+			eventBus.emit("navigate:start", null);
+		},
+	});
+	window.addEventListener("keydown", (e) => {
+		if (e.key === "Escape") {
+			e.preventDefault();
+			hud.toggle();
+		}
+	});
+	// Align stage canvas with the game canvas block
+	hud.resize(canvasManager.getDisplayRect());
+
 	// 7. Start page — wait for user click
 	const startPage = document.getElementById("start-page")!;
 	const btnStart = document.getElementById("btn-start")!;
@@ -275,6 +315,7 @@ function init(): void {
 	// 9. Handle resize
 	window.addEventListener("resize", () => {
 		canvasManager.resize();
+		hud.resize(canvasManager.getDisplayRect());
 	});
 
 	log.info("Phase 2 ready — waiting for chapters");
