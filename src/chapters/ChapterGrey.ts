@@ -29,6 +29,10 @@ import {
 import { type Vec2, vec2Distance } from "../utils/math";
 import { createLogger } from "../utils/logger";
 import { drawPaperBackground } from "../ui/InkPaintingUtils";
+import {
+	createCanvasLiquidGlass,
+	type LiquidGlassInstance,
+} from "liquid-glass-canvas";
 
 const log = createLogger("ChapterGrey");
 
@@ -97,6 +101,11 @@ export class ChapterGrey extends ChapterBase {
 	// Bird reveal
 	private birdAlpha = 0;
 
+	// Liquid glass glow (WebGL refraction following the current crack)
+	private glass: LiquidGlassInstance | null = null;
+	private glassWrap: HTMLDivElement | null = null;
+	private glassAnchor: HTMLDivElement | null = null;
+
 	private completed = false;
 	private skipRender = false;
 
@@ -124,12 +133,14 @@ export class ChapterGrey extends ChapterBase {
 		super.enter();
 		this.resetState();
 		this.frame = GreyFrame.INTRO;
+		this.setupGlass();
 		log.info("Grey entered");
 	}
 
 	exit(): void {
 		super.exit();
 		this.teardownDrag();
+		this.teardownGlass();
 	}
 
 	private resetState(): void {
@@ -178,6 +189,7 @@ export class ChapterGrey extends ChapterBase {
 			}
 		}
 
+		this.updateGlassLens();
 		this.renderFrame();
 	}
 
@@ -265,6 +277,98 @@ export class ChapterGrey extends ChapterBase {
 		this.dragHandler.detach();
 		this.dragHandler.onDrag(() => {});
 		this.dragHandler.onDragEnd(() => {});
+	}
+
+	/* ───────── Liquid glass glow ───────── */
+
+	/**
+	 * WebGL glass-refraction lens that follows the current crack hole.
+	 * A wrapper div is aligned 1:1 with the BG canvas so the source
+	 * texture maps exactly onto the overlay; an invisible anchor div
+	 * is repositioned each frame and the lens tracks its rect.
+	 */
+	private setupGlass(): void {
+		const bgCanvas = this.canvasManager.getLayer("bg")?.canvas;
+		const appEl = document.getElementById("app");
+		if (!bgCanvas || !appEl) return;
+
+		const rect = bgCanvas.getBoundingClientRect();
+		const appRect = appEl.getBoundingClientRect();
+
+		const wrap = document.createElement("div");
+		wrap.style.position = "absolute";
+		wrap.style.left = `${rect.left - appRect.left}px`;
+		wrap.style.top = `${rect.top - appRect.top}px`;
+		wrap.style.width = `${rect.width}px`;
+		wrap.style.height = `${rect.height}px`;
+		wrap.style.zIndex = "2"; // above puzzle gray overlay, below UI
+		wrap.style.pointerEvents = "none";
+		appEl.appendChild(wrap);
+		this.glassWrap = wrap;
+
+		this.glass = createCanvasLiquidGlass({
+			source: bgCanvas,
+			container: wrap,
+			quality: "high",
+		});
+
+		const anchor = document.createElement("div");
+		anchor.style.position = "absolute";
+		anchor.style.pointerEvents = "none";
+		anchor.style.visibility = "hidden";
+		wrap.appendChild(anchor);
+		this.glassAnchor = anchor;
+
+		this.glass.registerLens(anchor, {
+			radius: 90,
+			depth: 42,
+			feather: 38,
+			curve: 2,
+			chroma: 0.55,
+			tint: "rgba(200,166,90,0.10)",
+			glint: 0.35,
+		});
+		this.glass.start();
+	}
+
+	private updateGlassLens(): void {
+		if (!this.glass || !this.glassAnchor || !this.glassWrap) return;
+		const bgCanvas = this.canvasManager.getLayer("bg")?.canvas;
+		if (!bgCanvas) return;
+
+		const active =
+			this.frame === GreyFrame.PUZZLE && this.solvedCount < this.targets.length;
+		if (!active) {
+			this.glassAnchor.style.width = "0px";
+			this.glassAnchor.style.height = "0px";
+			return;
+		}
+
+		const cur = this.targets[this.solvedCount];
+		const holeGameX = CX + this.panOffset.x;
+		const holeGameY = CY + this.panOffset.y;
+		const sizeGame = (cur.holeRadius + 34) * 2;
+
+		const rect = bgCanvas.getBoundingClientRect();
+		const scale = rect.width / CANVAS_WIDTH;
+		const sizeCss = sizeGame * scale;
+
+		this.glassAnchor.style.width = `${sizeCss}px`;
+		this.glassAnchor.style.height = `${sizeCss}px`;
+		this.glassAnchor.style.left = `${holeGameX * scale - sizeCss / 2}px`;
+		this.glassAnchor.style.top = `${holeGameY * scale - sizeCss / 2}px`;
+	}
+
+	private teardownGlass(): void {
+		if (this.glass) {
+			this.glass.destroy();
+			this.glass = null;
+		}
+		if (this.glassWrap) {
+			this.glassWrap.remove();
+			this.glassWrap = null;
+		}
+		this.glassAnchor = null;
 	}
 
 	/* ───────── Rendering ───────── */

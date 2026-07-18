@@ -28,6 +28,7 @@ import { gameState } from "./state/GameState";
 import { eventBus } from "./utils/EventBus";
 import { createLogger, setLogLevel } from "./utils/logger";
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./utils/constants";
+import { getCachedPaperTexture } from "./ui/InkPaintingUtils";
 
 const log = createLogger("main");
 
@@ -173,14 +174,17 @@ class ChapterManager {
 		}
 	}
 
-	/** Render the fade transition overlay on the UI canvas. */
+	/** Render the page-turn transition overlay on the UI canvas.
+	 *  Fades through warm rice paper (album metaphor) instead of black. */
 	private renderTransitionOverlay(): void {
 		const ctx = this.canvasManager.getContext("ui");
 		if (!ctx) return;
 
 		ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-		ctx.fillStyle = `rgba(0,0,0,${this.transitionAlpha})`;
-		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		const paper = getCachedPaperTexture();
+		ctx.globalAlpha = this.transitionAlpha;
+		ctx.drawImage(paper, 0, 0);
+		ctx.globalAlpha = 1;
 	}
 }
 
