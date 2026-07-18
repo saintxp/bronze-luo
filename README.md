@@ -7,7 +7,7 @@
 | 字段 | 值 |
 |---|---|
 | 创建日期 | 2026-06-15 |
-| 技术栈 | TypeScript 5.x + HTML5 Canvas 2D + Vite + Vitest |
+| 技术栈 | TypeScript 5.x + HTML5 Canvas 2D + Vite + Vitest + GSAP + Proton + Stage.js |
 | 平台 | Web（PC + 移动端） |
 | 目标时长 | ~90 分钟完整流程 |
 
@@ -16,7 +16,7 @@
 ## 开发进度
 
 ```
-最新提交: b3eaafc — docs: update CHANGELOG (2026-07-17)
+最新提交: aca8619 — docs: add BGM plan and full prompts for 10-track scheme A
 当前阶段: Phase 2 — 序章 → 周王城 MVP   ← 你在这里
 下一阶段: Phase 3 — 东汉 → 曹魏
 ```
@@ -34,11 +34,13 @@
 
 | 日期 | 提交 | 内容 |
 |---|---|---|
-| 2026-07-17 | `b3eaafc` | 📝 CHANGELOG 更新 |
+| 2026-07-18 | `aca8619` | 🎵 BGM 计划 + 资产工作流 v2 + 视频抠像规范 |
+| 2026-07-18 | `d42227e` | ✨ 纸纹过渡动画 + 灰页 WebGL 玻璃光晕 |
+| 2026-07-18 | `a3d703b` | 🎬 章节淡入淡出 + VFX 粒子 (Proton) + 印章修复 |
+| 2026-07-18 | `ca22851` | 🖌️ InkPainting 移植 + GSAP 动画 + 色彩常量 |
+| 2026-07-18 | `aee7675` | 🎛️ Stage.js HUD 暂停菜单（含静音切换） |
 | 2026-07-17 | `cef67a4` | 🖼️ ImageRenderer + 资产系统升级 + 提示词手册 |
-| 2026-07-10 | `5595e93` | 🏗️ Phase 2 框架：序章/二里头/灰页/周王城章节 + 音频/印章/嵌套谜题 |
-| 2026-06-22 | `a7a62db` | 🔧 L3 旋转谜题自动修复 |
-| 2026-06-22 | `97da750` | 📝 README 初始化 |
+| 2026-07-10 | `5595e93` | 🏗️ Phase 2 框架：序章/二里头/灰页/周王城章节 |
 | 2026-06-22 | `daf2f39` | 🚀 核心引擎 + 教学关 L1-L3（21 源文件） |
 
 ### Phase 2 交付物
@@ -51,17 +53,25 @@
 | | ChapterZhou | 贰·周王城「孔老圆心/礼成/问道」 |
 | | ChapterDemoEnd | 演示结束画面 |
 | **谜题** | NestPuzzle + tests | 嵌套对齐谜题（14 测试） |
-| **音频** | AudioManager | Web Audio API 封装 |
-| | BronzeSound | 11 青铜音触发系统 |
+| **VFX** | Proton 粒子引擎 | VFX 粒子特效框架 |
+| | 纸纹过渡动画 | 章节切换暖纸纹理过渡 |
+| | WebGL 光晕 | 灰页玻璃光晕效果 |
+| **动画** | GSAP 集成 | 全局动画驱动 |
+| | InkPainting | 水墨渲染移植 |
+| | 淡入淡出 | 章节切换过渡 |
 | **UI** | StampEffect | 印章动画 |
 | | DefinitionPopup | ≤4 字释义弹窗 |
+| | Stage.js HUD 菜单 | 暂停/设置/静音切换 |
+| **音频** | AudioManager | Web Audio API 封装 |
+| | BronzeSound | 11 青铜音触发系统 |
 | **引擎** | ImageRenderer | Canvas 图片渲染（缩放/裁剪/滤镜） |
 | **资产** | VideoTrigger | Seedance 视频触发 |
-| | AssetLoader [重构] | 异步加载链 + 优先级队列 |
-| | AssetManifest [重构] | 扩展路径映射 + 章节分组 |
-| **文档** | Phase2_Seedream提示词_v1 | 序章→周王城 AI 绘图提示词 |
-| | AI资产构图规范 | 统一 AI 构图标准 |
-| | Seedream_Seedance_提示词手册 | 提示词编写指南 |
+| | AssetLoader | 异步加载链 + 优先级队列 |
+| | AssetManifest | 路径映射 + 章节分组 |
+| **文档** | BGM 计划 | 10 轨 A 方案 |
+| | Seedream 工作流 v2 | 比例优先 + 视频抠像规范 |
+| | 提示词手册 | Seedream/Seedance 编写指南 |
+| | Phase2 提示词 v1 | 序章→周王城 AI 绘图提示词 |
 
 ---
 
@@ -99,7 +109,8 @@
     │   ├── DragHandler.ts          #   拖拽交互（鼠标 + 触屏）
     │   ├── HitDetector.ts          #   碰撞/吸附检测
     │   ├── AnimationEngine.ts      #   Tween + 关键帧回放
-    │   └── ImageRenderer.ts        #   图片渲染（缩放/裁剪/滤镜）
+    │   ├── ImageRenderer.ts        #   图片渲染（缩放/裁剪/滤镜）
+    │   └── InkPainting.ts          #   水墨渲染效果
     ├── puzzle/                     # 谜题层
     │   ├── PuzzleBase.ts           #   抽象谜题接口
     │   ├── AlignmentPuzzle.ts      #   拖拽对齐谜题
@@ -125,7 +136,8 @@
     ├── ui/                         # UI 层
     │   ├── TutorialOverlay.ts      #   教学引导覆盖层
     │   ├── StampEffect.ts          #   印章动画
-    │   └── DefinitionPopup.ts      #   ≤4 字释义弹窗
+    │   ├── DefinitionPopup.ts      #   ≤4 字释义弹窗
+    │   └── HUDMenu.ts              #   暂停/设置菜单 (Stage.js)
     ├── tests/                      # 测试
     │   ├── alignment.test.ts       #   拼合对准测试
     │   └── nest.test.ts            #   嵌套谜题测试
