@@ -1,5 +1,7 @@
 # 铜声·识洛 — Phase 2 图片资产提示词
 
+> **⚠️ 已过时（superseded）**：本文件 v1 仍保留作参考，但当前生成工作流请以 [`Seedream资产生成工作流_v2.md`](Seedream资产生成工作流_v2.md) 为准。v2 已根据 Seedream 固定画幅比约束重新整理比例与后处理方案。
+>
 > **用途：** 替换当前 Canvas 2D 占位渲染为 Seedream 4K 正式资产
 > **生成工具：** 即梦 Seedream 4K（静态图）
 > **视频工具：** 即梦 Seedance 1.5 Pro（视频片段）
