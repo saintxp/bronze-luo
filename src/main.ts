@@ -135,7 +135,7 @@ class ChapterManager {
 	update(dt: number): void {
 		// Handle transition animation
 		if (this.isTransitioning) {
-			this.transitionTimer += dt * 1000; // dt is in seconds
+			this.transitionTimer += dt; // dt is in ms (rAF timestamp delta)
 			const t = Math.min(this.transitionTimer / FADE_DURATION, 1);
 
 			if (this.transitionPhase === "fadeOut") {
