@@ -13,7 +13,7 @@ Gorogoa-like 2D 拼图独立游戏，HTML5 Canvas + TypeScript + Vite。5 层 Ca
 ### 当前最新提交
 
 ```
-aee7675 feat: stage-js HUD pause menu with mute toggle
+50d6368 feat: add pause/settings buttons for HUD menu
 ```
 
 ### 构建验证
