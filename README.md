@@ -16,7 +16,7 @@
 ## 开发进度
 
 ```
-最新提交: e973db0 — feat: Phase 3 东汉·曹魏 6 章完成
+最新提交: 8063bd0 — feat: asset replacement library + particle colophon + debug API
 当前阶段: Phase 4 — 北魏 → 隋唐 → 尾声   ← 你在这里
 下一阶段: Phase 5 — 打磨 + 测试 + 发布
 
