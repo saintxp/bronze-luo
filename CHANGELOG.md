@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-07-19b — 文字珠帘 CurtainColophon + 真实资产替换
+
+### 新增
+
+- **CurtainColophon 文字珠帘**: `src/ui/CurtainColophon.ts` — Canvas 物理珠帘系统，Verlet 积分链式动画，三阶段：ASSEMBLE（散射聚合 1400ms）→ HOLD（物理模拟持留，鼠标推帘交互）→ DISPERSE（左下风散 1000ms），支持竖排列式排版、避首标点符号、竖排括号自动转换
+- **真实 PNG 资产集成**: 序章+教学关全面从 Canvas 2D 占位渲染迁移至真实 PNG（`public/assets/tutorial/` 8 张 + `public/assets/prologue/` 7 张），`AssetLoader.preloadChapter()` 异步加载，加载失败回退 Canvas 2D
+- **序章重写**: ChapterPrologue.ts — 新帧 COPPER_FLOOD_CORNERS（四角铜液渗入）+ COLOPHON 文案页，封面缩放动画+文案淡入，洛河引导路径坐标预计算
+- **教学关重写**: ChapterTutorial.ts — 使用 AssetLoader 预加载 8 张教学关真实资产，Geometry 占位→真实 PNG 渲染（门/窗/齿轮）
+
+### 修改
+
+- **main.ts**: CurtainColophon 生命周期集成（chapter:complete → 珠帘显示 → 点击/按键推进），`resolveCopyId()` 章节→文案映射，`pointermove/pointerup/keydown` 交互注册
+- **AssetManifest.ts**: 全文件 tab→space 缩进规范化 + 真实资产路径映射
+- **资产替换文件库**: 序章 _manifest.md 更新（新增 colophon-text 需求文档 + Seedream 提示词）
+- **粒子题词原型** `particle-colophon-prototype.html` → 删除（被 CurtainColophon 取代）
+
+### 验证
+
+| 检查项 | 结果 |
+|--------|:----:|
+| TypeScript 编译 | ✅ 零错误 |
+| 测试 | ✅ **70/70** 通过 |
+| 生产构建 | ✅ 367KB (gzip 106KB) |
+
+---
+
 ## 2026-07-19 — 资产替换工作流 + 粒子题词系统 + 调试 API
 
 ### 新增

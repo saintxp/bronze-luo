@@ -16,11 +16,11 @@
 ## 开发进度
 
 ```
-最新提交: 8063bd0 — feat: asset replacement library + particle colophon + debug API
+最新提交: 7faf106 — docs: update latest commit hash in README
 当前阶段: Phase 4 — 北魏 → 隋唐 → 尾声   ← 你在这里
 下一阶段: Phase 5 — 打磨 + 测试 + 发布
 
-> ⚡ 正在进行：资产替换工作流 + 粒子题词系统 + 章节文案数据
+> ⚡ 正在进行：文字珠帘 CurtainColophon + 真实资产迁移 + 序章/教学关重写
 ```
 
 | 阶段 | 内容 | 工时 | 里程碑 | 状态 |
@@ -36,6 +36,7 @@
 
 | 日期 | 提交 | 内容 |
 |---|---|---|
+| 2026-07-19 | — | 🏗️ 文字珠帘 CurtainColophon + 序章/教学关真实资产替换 + 物理珠帘系统 |
 | 2026-07-19 | — | 🏗️ 资产替换工作流 + 粒子题词系统 + 章节文案数据 + 调试 API |
 | 2026-07-19 | `e973db0` | 🏆 **Phase 3 东汉·曹魏 6 章完成** (70 tests, 367KB) |
 | 2026-07-18 | `aca8619` | 🎵 BGM 计划 + 资产工作流 v2 + 视频抠像规范 |
@@ -176,13 +177,15 @@
     │   ├── TutorialOverlay.ts      #   教学引导覆盖层
     │   ├── StampEffect.ts          #   印章动画
     │   ├── DefinitionPopup.ts      #   ≤4 字释义弹窗
+    │   ├── CurtainColophon.ts      #   文字珠帘（Verlet 物理链 + 三阶段动画）
     │   └── HUDMenu.ts              #   暂停/设置菜单 (Stage.js)
     ├── tests/                      # 测试
     │   ├── alignment.test.ts       #   拼合对准测试
     │   ├── nest.test.ts            #   嵌套谜题测试
     │   ├── inkpainting.test.ts     #   水墨渲染测试
     │   ├── phase3-smoke.test.ts    #   Phase 3 冒烟测试（36）
-    │   └── particle-colophon-prototype.html #   粒子题词 HTML 原型
+    │   ├── curtain-colophon-demo.html #   珠帘系统 HTML 原型
+    │   └── tutorial-curtain-demo.html #   教学关珠帘 HTML 原型
     └── utils/                      # 工具
         ├── math.ts                 #   向量/碰撞/吸附数学
         ├── easing.ts               #   缓动函数
@@ -203,7 +206,7 @@
 | 静态图 + 音效 | ~235 张 + 14 音效 |
 | 角色 | 18 位（全部"侧写不告"） |
 | 青铜音 | 11 声 |
-| 源文件 | 42 TypeScript 模块 |
+| 源文件 | 43 TypeScript 模块 |
 | 单元测试 | 70（34 原有 + 36 Phase 3）✅ 全部通过 |
 | 构建产物 | ~367KB（gzip 106KB） |
 

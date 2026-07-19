@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CurtainColophon 小样 — 文字珠帘</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #1a1a18;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        gap: 14px;
+        font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+        color: #ccc;
+      }
+      canvas {
+        display: block;
+        border-radius: 6px;
+        background: #f6f1e6;
+        cursor: none;
+        touch-action: none;
+      }
+      .cursor-dot {
+        position: fixed;
+        z-index: 999;
+        width: 12px;
+        height: 12px;
+        border: 1px solid rgba(46, 37, 31, 0.72);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        opacity: 0;
+      }
+      .cursor-dot.active {
+        opacity: 1;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      button {
+        background: #b64232;
+        color: #fff;
+        border: none;
+        padding: 8px 18px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      button:hover {
+        background: #d45342;
+      }
+      button:disabled {
+        background: #555;
+        cursor: default;
+      }
+      select {
+        padding: 6px 10px;
+        border-radius: 4px;
+        background: #333;
+        color: #ccc;
+        border: 1px solid #555;
+        font-size: 13px;
+      }
+      .info {
+        font-size: 12px;
+        color: #888;
+        max-width: 600px;
+        text-align: center;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div class="cursor-dot" id="cursor"></div>
+    <div class="controls">
+      <select id="sampleSelect">
+        <option value="erlitou">壹·二里头·铸</option>
+        <option value="zhou">贰·周王城·宅兹</option>
+        <option value="diting">叁·东汉·地听</option>
+        <option value="guitian">陆·隋唐·归田</option>
+      </select>
+      <button id="btnAssemble">汇聚</button>
+      <button id="btnDisperse" disabled>吹散</button>
+      <button id="btnReset">重置</button>
+    </div>
+    <div class="info">
+      文字珠帘 · Verlet链物理 · 竖排右→左 · 缎带渲染<br />
+      保持阶段有自然飘动（模拟微风）
+    </div>
+    <script>
+      /* ═══════════════════════════════════════════
+   CurtainColophon 独立小样
+   核心物理 & 渲染逻辑与游戏组件一致
+   ═══════════════════════════════════════════ */
+
+      const SCALE = 0.65;
+      const W = 1920,
+        H = 1080;
+      const FONT_SIZE = 13;
+      const ROW_GAP = FONT_SIZE * 1.08;
+      const CURTAIN_TOP_Y = H * 0.28;
+      const MIN_HEIGHT = 420;
+
+      const SAMPLES = {
+        erlitou: {
+          color: "#B87333",
+          text: "昔夏之方有德也远方图物贡金九牧铸鼎象物洛阳盆地的第一鼎铜比周鼎早一千年比何尊重八百岁二里头绿松石矿脉记得铜最初不是礼器是石头龙尾化绳朝东延伸指向下一座城——先秦·《左传·宣公三年》",
+        },
+        zhou: {
+          color: "#5D7A5E",
+          text: "唯王初迁宅于成周何尊一百二十二字铭文劈开洛阳作为中国的元年土圭测影涧水东瀍水西周公在洛阳盆地画了一个圈此天下之中九鼎自朝歌迁来洛阳此后三千年皆从此圈起笔——西周·何尊铭文（宝鸡青铜器博物院藏）",
+        },
+        diting: {
+          color: "#C23B22",
+          text: "阳嘉元年张衡于洛阳灵台造候风地动仪精铜铸成八龙衔丸灵台在洛阳南郊十二米夯土台浑天仪在上地动仪在下一龙发机铜丸坠入蟾口距洛阳千里之外的地震被一口铜记住了方向自书典所记未之有也——南朝宋·《后汉书·张衡传》",
+        },
+        guitian: {
+          color: "#D4A843",
+          text: "白居易以刑部尚书致仕居洛阳履道里与香山僧如满结社白衣鸠杖自称香山居士以诗稿八百首置香山寺藏经堂手按诗稿压入经架格层膝盖沾牡丹花瓣全城牡丹同一帧盛放从东汉邙山草花到此洛阳等了六百年归田未竟——后晋·《旧唐书·白居易传》",
+        },
+      };
+
+      const canvas = document.getElementById("c");
+      const cursorEl = document.getElementById("cursor");
+      const ctx = canvas.getContext("2d");
+      canvas.width = Math.round(W * SCALE);
+      canvas.height = Math.round(H * SCALE);
+      const S = canvas.width / W;
+
+      // Expose chapter title to draw in scene area above curtain
+      const CHAPTER_TITLES = {
+        erlitou: {
+          title: "壹·二里头 — 铸",
+          subtitle: "夏都斟鄩 · 绿松石龙形器",
+        },
+        zhou: {
+          title: "贰·周王城 — 宅兹中国",
+          subtitle: "何尊铭文 · 天下之中",
+        },
+        diting: { title: "叁·东汉 — 地听", subtitle: "灵台 · 候风地动仪" },
+        guitian: { title: "陆·隋唐 — 归田", subtitle: "履道里 · 香山寺" },
+      };
+
+      /* ─── Verlet chain ─── */
+      const FRICTION = 0.95,
+        GRAVITY = 0.18,
+        PASSES = 5;
+      const ASSEMBLE_MS = 1400,
+        HOLD_MS = 4000,
+        DISPERSE_MS = 1000;
+
+      let chains = [],
+        phase = "idle",
+        phaseStart = 0,
+        activeColor = "#B87333";
+
+      /* ─── Mouse interaction ─── */
+      const mouse = { x: -999, y: -999, oldX: -999, oldY: -999, active: false };
+      const MOUSE_RADIUS = 40;
+      const MOUSE_STRENGTH = 0.82;
+
+      function injectMouseDelta() {
+        if (!mouse.active) return;
+        const mx = mouse.x / S,
+          my = mouse.y / S;
+        const omx = mouse.oldX / S,
+          omy = mouse.oldY / S;
+        const moveX = mx - omx,
+          moveY = my - omy;
+        const speed = Math.hypot(moveX, moveY);
+        if (speed < 0.01 || speed > 120) return;
+        for (const c of chains) {
+          for (const p of c) {
+            if (p.pinned) continue;
+            const d = Math.hypot(p.x - omx, p.y - omy);
+            if (d >= MOUSE_RADIUS) continue;
+            const falloff = 1 - d / MOUSE_RADIUS;
+            p.x += moveX * MOUSE_STRENGTH * falloff;
+            p.y += moveY * MOUSE_STRENGTH * falloff;
+          }
+        }
+      }
+
+      function build(text, color) {
+        activeColor = color;
+        chains = [];
+        const total = text.length;
+        const maxRows = Math.floor(MIN_HEIGHT / ROW_GAP);
+        const textCols = Math.ceil(total / maxRows);
+        const denseCols = Math.floor((W * 0.7) / 78);
+        let cols = Math.max(textCols, denseCols);
+        cols = Math.max(3, Math.min(22, cols));
+        const rows = Math.max(
+          Math.ceil(total / cols),
+          Math.floor(MIN_HEIGHT / ROW_GAP),
+        );
+        const cw = W * 0.7,
+          left = (W - cw) / 2;
+        const scatterCX = W * 0.5,
+          scatterCY = H * 0.55;
+        const scatterR = Math.max(W, H) * 0.45;
+        const windBase = (Math.PI * 5) / 4;
+        const windDist = Math.max(W, H) * 0.55;
+
+        for (let col = 0; col < cols; col++) {
+          const chain = [];
+          const readingCol = cols - 1 - col;
+          const x = cols > 1 ? left + (col * cw) / (cols - 1) : W / 2;
+
+          for (let row = 0; row <= rows; row++) {
+            const y = CURTAIN_TOP_Y + row * ROW_GAP;
+            const pinned = row === 0;
+            let ch = "";
+            if (row > 0) {
+              const gi = readingCol * rows + (row - 1);
+              if (gi < total) ch = text[gi];
+            }
+            const sa = Math.random() * Math.PI * 2;
+            const sd = scatterR * (0.5 + Math.random() * 0.5);
+            const sx = scatterCX + Math.cos(sa) * sd;
+            const sy = scatterCY + Math.sin(sa) * sd * 0.65;
+            const wa = windBase + (Math.random() - 0.5) * 1.0;
+            const wd = windDist * (0.6 + Math.random() * 0.7);
+            chain.push({
+              x: sx,
+              y: sy,
+              oldX: sx,
+              oldY: sy,
+              anchorX: x,
+              anchorY: y,
+              pinned,
+              restLength: row === 0 ? 0 : ROW_GAP,
+              char: ch,
+              scatterX: sx,
+              scatterY: sy,
+              windX: x + Math.cos(wa) * wd,
+              windY: y + Math.sin(wa) * wd,
+            });
+          }
+          chains.push(chain);
+        }
+      }
+
+      /* ─── Physics ─── */
+      function integrate() {
+        for (const c of chains)
+          for (const p of c) {
+            if (p.pinned) continue;
+            const vx = (p.x - p.oldX) * FRICTION;
+            const vy = (p.y - p.oldY) * FRICTION;
+            p.oldX = p.x;
+            p.oldY = p.y;
+            p.x += vx;
+            p.y += vy + GRAVITY;
+          }
+      }
+
+      function constrain() {
+        for (let pass = 0; pass < PASSES; pass++)
+          for (const c of chains) {
+            c[0].x = c[0].anchorX;
+            c[0].y = c[0].anchorY;
+            for (let i = 1; i < c.length; i++) {
+              const a = c[i - 1],
+                b = c[i];
+              const dx = b.x - a.x,
+                dy = b.y - a.y;
+              const d = Math.max(0.0001, Math.hypot(dx, dy));
+              const diff = (d - b.restLength) / d;
+              if (a.pinned) {
+                b.x -= dx * diff;
+                b.y -= dy * diff;
+              } else {
+                const cx = dx * diff * 0.5,
+                  cy = dy * diff * 0.5;
+                a.x += cx;
+                a.y += cy;
+                b.x -= cx;
+                b.y -= cy;
+              }
+            }
+          }
+      }
+
+      /* ─── Render ─── */
+      const RIBBON_COLORS = [
+        "rgba(112,80,51,0.055)",
+        "rgba(142,47,35,0.045)",
+        "rgba(83,72,58,0.05)",
+        "rgba(156,105,46,0.04)",
+      ];
+
+      function draw() {
+        ctx.save();
+        ctx.scale(S, S);
+        ctx.fillStyle = "#f6f1e6";
+        ctx.fillRect(0, 0, W, H);
+
+        // ── Chapter scene area (above curtain) ──
+        const sampleKey = document.getElementById("sampleSelect").value;
+        const meta = CHAPTER_TITLES[sampleKey];
+        if (meta) {
+          ctx.fillStyle = "rgba(32,28,24,0.025)";
+          ctx.fillRect(0, 0, W, CURTAIN_TOP_Y);
+          // Dashed anchor line
+          ctx.strokeStyle = "rgba(32,28,24,0.10)";
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 8]);
+          ctx.beginPath();
+          ctx.moveTo(W * 0.15, CURTAIN_TOP_Y);
+          ctx.lineTo(W * 0.85, CURTAIN_TOP_Y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // Chapter title
+          ctx.fillStyle = "rgba(32,28,24,0.50)";
+          ctx.font = `500 ${Math.round(FONT_SIZE * 1.5)}px "Songti SC","Noto Serif SC",Georgia,serif`;
+          ctx.textAlign = "center";
+          ctx.fillText(meta.title, W / 2, CURTAIN_TOP_Y * 0.4);
+          // Subtitle
+          ctx.fillStyle = "rgba(32,28,24,0.28)";
+          ctx.font = `400 ${Math.round(FONT_SIZE * 0.85)}px "Songti SC","Noto Serif SC",sans-serif`;
+          ctx.fillText(
+            meta.subtitle,
+            W / 2,
+            CURTAIN_TOP_Y * 0.4 + FONT_SIZE * 1.9,
+          );
+          // Anchor line end dots
+          ctx.fillStyle = "rgba(156,108,46,0.30)";
+          ctx.beginPath();
+          ctx.arc(W * 0.15, CURTAIN_TOP_Y, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(W * 0.85, CURTAIN_TOP_Y, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        if (chains.length === 0) {
+          ctx.restore();
+          return;
+        }
+
+        const cols = chains.length;
+        const rhw = Math.max(3.8, Math.min(5.5, ((W * 0.7) / cols) * 0.34));
+
+        // Ribbons
+        const ribbons = [];
+        for (const c of chains) {
+          const n = c.length,
+            rib = [];
+          for (let i = 0; i < n; i++) {
+            const prev = c[i === 0 ? 0 : i - 1];
+            const next = c[i === n - 1 ? n - 1 : i + 1];
+            const dx = next.x - prev.x,
+              dy = next.y - prev.y;
+            const d = Math.hypot(dx, dy) || 1;
+            const nx = -dy / d,
+              ny = dx / d;
+            const extra = i === n - 1 ? 3 : 0;
+            rib[i] = {
+              lx: c[i].x + nx * rhw,
+              ly: c[i].y + ny * rhw + extra,
+              rx: c[i].x - nx * rhw,
+              ry: c[i].y - ny * rhw + extra,
+            };
+          }
+          ribbons.push(rib);
+        }
+
+        ctx.shadowColor = "rgba(53,39,24,0.08)";
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1.2;
+        ctx.shadowOffsetY = 2;
+        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = "rgba(47,38,29,0.06)";
+
+        for (let tone = 0; tone < 4; tone++) {
+          ctx.beginPath();
+          for (let c = tone; c < cols; c += 4) {
+            const rib = ribbons[c];
+            const n = rib.length;
+            if (n < 2) continue;
+            ctx.moveTo(rib[0].lx, rib[0].ly);
+            for (let i = 1; i < n; i++) ctx.lineTo(rib[i].lx, rib[i].ly);
+            for (let i = n - 1; i >= 0; i--) ctx.lineTo(rib[i].rx, rib[i].ry);
+            ctx.closePath();
+          }
+          ctx.fillStyle = RIBBON_COLORS[tone];
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
+        // Anchors
+        ctx.beginPath();
+        for (let c = 0; c < cols; c++) {
+          const a = chains[c][0];
+          ctx.moveTo(a.x + 1.6, a.y);
+          ctx.arc(a.x, a.y, 1.6, 0, Math.PI * 2);
+        }
+        ctx.fillStyle = "rgba(156,108,46,0.72)";
+        ctx.fill();
+
+        // Characters
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `500 ${FONT_SIZE}px "Songti SC","Noto Serif SC",SimSun,serif`;
+        ctx.fillStyle = activeColor;
+        for (const c of chains)
+          for (let i = 1; i < c.length; i++)
+            if (c[i].char) ctx.fillText(c[i].char, c[i].x, c[i].y);
+
+        ctx.restore();
+      }
+
+      /* ─── Loop ─── */
+      function loop(now) {
+        injectMouseDelta();
+        mouse.oldX = mouse.x;
+        mouse.oldY = mouse.y;
+
+        const elapsed = now - phaseStart;
+
+        if (phase === "assembling") {
+          const t = Math.min(elapsed / ASSEMBLE_MS, 1);
+          const ease = t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
+          for (const c of chains)
+            for (const p of c) {
+              p.x = p.scatterX + (p.anchorX - p.scatterX) * ease;
+              p.y = p.scatterY + (p.anchorY - p.scatterY) * ease;
+              p.oldX = p.x;
+              p.oldY = p.y;
+            }
+          draw();
+          if (t >= 1) {
+            phase = "holding";
+            phaseStart = now;
+            updateBtns();
+          }
+        } else if (phase === "holding") {
+          integrate();
+          constrain();
+          draw();
+        } else if (phase === "dispersing") {
+          const t = Math.min(elapsed / DISPERSE_MS, 1);
+          const ease = t * t;
+          for (const c of chains)
+            for (const p of c) {
+              if (p.pinned) {
+                p.x = p.anchorX + (p.windX - p.anchorX) * ease * 0.3;
+                p.y = p.anchorY + (p.windY - p.anchorY) * ease * 0.3;
+              } else {
+                const tx = p.anchorX + (p.windX - p.anchorX) * ease;
+                const ty = p.anchorY + (p.windY - p.anchorY) * ease;
+                p.oldX = p.x;
+                p.oldY = p.y;
+                p.x += (tx - p.x) * 0.12;
+                p.y += (ty - p.y) * 0.12 + GRAVITY * 1.5;
+              }
+            }
+          constrain();
+          draw();
+          if (t >= 1) {
+            phase = "idle";
+            chains = [];
+            updateBtns();
+          }
+        } else {
+          draw();
+        }
+      }
+
+      function updateBtns() {
+        document.getElementById("btnAssemble").disabled = phase !== "idle";
+        document.getElementById("btnDisperse").disabled = phase !== "holding";
+      }
+
+      /* ─── Actions ─── */
+      function loadSample(key) {
+        const s = SAMPLES[key];
+        build(s.text, s.color);
+        phase = "idle";
+        phaseStart = 0;
+        updateBtns();
+      }
+
+      function doAssemble() {
+        if (chains.length === 0)
+          loadSample(document.getElementById("sampleSelect").value);
+        phase = "assembling";
+        phaseStart = performance.now();
+        updateBtns();
+      }
+      function doDisperse() {
+        phase = "dispersing";
+        phaseStart = performance.now();
+        updateBtns();
+      }
+      function doReset() {
+        phase = "idle";
+        loadSample(document.getElementById("sampleSelect").value);
+      }
+
+      document
+        .getElementById("btnAssemble")
+        .addEventListener("click", doAssemble);
+      document
+        .getElementById("btnDisperse")
+        .addEventListener("click", doDisperse);
+      document.getElementById("btnReset").addEventListener("click", doReset);
+      document
+        .getElementById("sampleSelect")
+        .addEventListener("change", (e) => loadSample(e.target.value));
+
+      loadSample("erlitou");
+
+      /* ─── Pointer events ─── */
+      function onPointerEnter(e) {
+        const r = canvas.getBoundingClientRect();
+        mouse.x = mouse.oldX = e.clientX - r.left;
+        mouse.y = mouse.oldY = e.clientY - r.top;
+        mouse.active = true;
+        cursorEl.classList.add("active");
+      }
+      function onPointerMove(e) {
+        if (!mouse.active) onPointerEnter(e);
+        const r = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - r.left;
+        mouse.y = e.clientY - r.top;
+        cursorEl.style.left = e.clientX + "px";
+        cursorEl.style.top = e.clientY + "px";
+      }
+      function onPointerLeave() {
+        mouse.active = false;
+        cursorEl.classList.remove("active");
+      }
+      canvas.addEventListener("pointerenter", onPointerEnter);
+      canvas.addEventListener("pointermove", onPointerMove);
+      canvas.addEventListener("pointerleave", onPointerLeave);
+
+      requestAnimationFrame(function tick(now) {
+        loop(now);
+        requestAnimationFrame(tick);
+      });
+    </script>
+  </body>
+</html>

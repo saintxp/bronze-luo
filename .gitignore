@@ -40,7 +40,11 @@ yarn-error.log*
 cache/
 .temp/
 _test.json
+vite.pid
 
 # Test artifacts
 screenshots/
 nul
+
+# PI workflow backups
+.pi/backups/

@@ -6,7 +6,8 @@
  *   L2 — Layer-pan / nest (hole alignment via panning)
  *   L3 — Rotation match (gear teeth alignment)
  *
- * All graphics are Canvas 2D placeholders — no external assets required.
+ * Uses real PNG assets from /assets/tutorial/ when available,
+ * falls back to Canvas 2D placeholder drawing.
  */
 
 import { ChapterBase } from "./ChapterBase";
@@ -17,6 +18,8 @@ import type { DragHandler } from "../engine/DragHandler";
 import { TutorialOverlay } from "../ui/TutorialOverlay";
 import { gameState } from "../state/GameState";
 import { eventBus } from "../utils/EventBus";
+import type { AssetLoader } from "../assets/AssetLoader";
+import { ASSETS } from "../assets/AssetManifest";
 import {
 	PuzzleState,
 	SNAP_THRESHOLD,
@@ -37,6 +40,7 @@ const CY = CANVAS_HEIGHT / 2;
 export class ChapterTutorial extends ChapterBase {
 	private canvasManager: CanvasManager;
 	private dragHandler: DragHandler;
+	private assetLoader: AssetLoader;
 	private overlay: TutorialOverlay;
 	private currentLevel = 0; // 0 = L1, 1 = L2, 2 = L3
 
@@ -48,9 +52,9 @@ export class ChapterTutorial extends ChapterBase {
 
 	/* L2 state */
 	private l2PanOffset: Vec2 = { x: 0, y: 0 };
-	private l2TargetOffset: Vec2 = { x: -300, y: -200 }; // correct pan offset
+	private l2TargetOffset: Vec2 = { x: -300, y: -200 };
 	private l2HoleRadius = 60;
-	private l2Solved = false; // guard against repeated puzzle:solved emission
+	private l2Solved = false;
 
 	/* L3 state */
 	private l3Angle = 0;
@@ -58,14 +62,31 @@ export class ChapterTutorial extends ChapterBase {
 	private l3FixedCenter: Vec2 = { x: 700, y: 500 };
 	private l3MovableCenter: Vec2 = { x: 920, y: 500 };
 
-	constructor(canvasManager: CanvasManager, dragHandler: DragHandler) {
+	constructor(
+		canvasManager: CanvasManager,
+		dragHandler: DragHandler,
+		assetLoader: AssetLoader,
+	) {
 		super("tutorial");
 		this.canvasManager = canvasManager;
 		this.dragHandler = dragHandler;
+		this.assetLoader = assetLoader;
 		this.overlay = new TutorialOverlay(canvasManager);
 	}
 
-	init(): void {
+	async init(): Promise<void> {
+		// Preload tutorial images
+		await this.assetLoader.preloadChapter("tutorial", {
+			doorFrame: ASSETS.tutorial.doorFrame,
+			doorPanel: ASSETS.tutorial.doorPanel,
+			doorClosed: ASSETS.tutorial.doorClosed,
+			fgHole: ASSETS.tutorial.fgHole,
+			bgScene: ASSETS.tutorial.bgScene,
+			gearFixed: ASSETS.tutorial.gearFixed,
+			gearMovable: ASSETS.tutorial.gearMovable,
+			gearMeshed: ASSETS.tutorial.gearMeshed,
+		});
+
 		// L1: drag door panel into door frame
 		const l1 = new AlignmentPuzzle({
 			id: "tut-l1",
@@ -108,17 +129,30 @@ export class ChapterTutorial extends ChapterBase {
 	}
 
 	update(_dt: number): void {
-		// Renders the current tutorial level each frame
 		this.renderLevel();
 
-		// Update overlay
 		const now = performance.now();
 		this.overlay.render(now);
 
-		// Clear UI canvas when overlay is hidden (prevent ghost text)
 		if (!this.overlay.visible) {
 			this.canvasManager.clearLayer("ui");
 		}
+	}
+
+	/* ───────── Image helpers ───────── */
+
+	private getImg(path: string): HTMLImageElement | undefined {
+		return this.assetLoader.get(path);
+	}
+
+	/** Draw an image centered at (cx, cy). */
+	private drawCentered(
+		ctx: CanvasRenderingContext2D,
+		img: HTMLImageElement,
+		cx: number,
+		cy: number,
+	): void {
+		ctx.drawImage(img, cx - img.width / 2, cy - img.height / 2);
 	}
 
 	/* ───────── Level setup ───────── */
@@ -153,7 +187,6 @@ export class ChapterTutorial extends ChapterBase {
 		this.l1PanelPos = { x: 200, y: 340 };
 		this.currentPuzzleIndex = 0;
 
-		// Clear existing elements and register the door panel
 		this.dragHandler.setMode("element");
 		this.dragHandler.registerElement({
 			id: "door-panel",
@@ -186,16 +219,13 @@ export class ChapterTutorial extends ChapterBase {
 		this.l2Solved = false;
 		this.currentPuzzleIndex = 1;
 
-		// Clear any leaked callback from L1
 		this.dragHandler.onDragEnd(() => {});
 
-		// L2 uses layer-pan mode — the entire foreground layer pans
 		this.dragHandler.setMode("layer");
 		this.dragHandler.onDrag((state) => {
 			this.l2PanOffset.x += state.delta.x;
 			this.l2PanOffset.y += state.delta.y;
 
-			// Check alignment: is the hole center over the target?
 			const holeScreenX = CX + this.l2PanOffset.x;
 			const holeScreenY = CY + this.l2PanOffset.y;
 			const targetX = CX + this.l2TargetOffset.x;
@@ -216,26 +246,22 @@ export class ChapterTutorial extends ChapterBase {
 	/* ───────── L3: Gear rotation ───────── */
 
 	private setupL3(): void {
-		this.l3Angle = Math.PI / 8; // half-tooth offset — not at any snap angle
+		this.l3Angle = Math.PI / 8;
 		this.currentPuzzleIndex = 2;
 
-		// Clear any leaked callback from previous levels
 		this.dragHandler.onDragEnd(() => {});
 
 		this.dragHandler.setMode("layer");
 
-		let dragFrame = 0; // skip first frame so it doesn't instantly solve
+		let dragFrame = 0;
 
 		this.dragHandler.onDrag((state) => {
 			dragFrame++;
 
-			// Arc-drag: compute angle from center of movable gear
 			const dx = state.currentPos.x - this.l3MovableCenter.x;
 			const dy = state.currentPos.y - this.l3MovableCenter.y;
 			const rawAngle = Math.atan2(dy, dx);
 
-			// Only update angle & check alignment after the first drag frame,
-			// so the user actually rotates the gear before it can solve
 			if (dragFrame > 1) {
 				this.l3Angle = rawAngle;
 
@@ -246,8 +272,6 @@ export class ChapterTutorial extends ChapterBase {
 					this.overlay.hide();
 				}
 			} else {
-				// First frame: store the angle but don't check alignment yet,
-				// to prevent "drag from the right = angle 0 = snap angle 0 = instant solve"
 				this.l3Angle = rawAngle;
 			}
 		});
@@ -275,9 +299,8 @@ export class ChapterTutorial extends ChapterBase {
 			case "tut-l3":
 				gameState.isTutorialComplete = true;
 				log.info("Tutorial complete! All 3 levels solved.");
-				// Brief delay so player sees completion text before chapter transition
 				setTimeout(() => {
-					this.advanceToNextPuzzle(); // triggers chapter:complete (last puzzle)
+					this.advanceToNextPuzzle();
 				}, 1500);
 				break;
 		}
@@ -285,31 +308,8 @@ export class ChapterTutorial extends ChapterBase {
 
 	/* ───────── Drawing helpers ───────── */
 
-	/** Draw warm ink-paper background across the full canvas. */
 	private drawBackground(ctx: CanvasRenderingContext2D): void {
 		drawPaperBackground(ctx);
-	}
-
-	/** Draw a rounded rect path (no fill/stroke). */
-	private roundRect(
-		ctx: CanvasRenderingContext2D,
-		x: number,
-		y: number,
-		w: number,
-		h: number,
-		r: number,
-	): void {
-		ctx.beginPath();
-		ctx.moveTo(x + r, y);
-		ctx.lineTo(x + w - r, y);
-		ctx.arcTo(x + w, y, x + w, y + r, r);
-		ctx.lineTo(x + w, y + h - r);
-		ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-		ctx.lineTo(x + r, y + h);
-		ctx.arcTo(x, y + h, x, y + h - r, r);
-		ctx.lineTo(x, y + r);
-		ctx.arcTo(x, y, x + r, y, r);
-		ctx.closePath();
 	}
 
 	/* ───────── Rendering ───────── */
@@ -329,182 +329,184 @@ export class ChapterTutorial extends ChapterBase {
 	}
 
 	/**
-	 * L1: Draw door frame (BG) + door panel (Puzzle canvas).
+	 * L1: Door frame (BG) + door panel (Puzzle canvas).
+	 * Uses real PNGs when loaded, falls back to placeholder shapes.
 	 */
 	private renderL1(): void {
 		this.canvasManager.clearLayer("bg");
 		this.canvasManager.clearLayer("puzzle");
 
+		const doorFrameImg = this.getImg(ASSETS.tutorial.doorFrame);
+		const doorPanelImg = this.getImg(ASSETS.tutorial.doorPanel);
+		const doorClosedImg = this.getImg(ASSETS.tutorial.doorClosed);
+		const isSolved = this.puzzles[0]?.solved;
+
+		// ── BG: door frame or completion fullscreen ──
 		const bgCtx = this.canvasManager.getContext("bg");
 		if (bgCtx) {
 			this.drawBackground(bgCtx);
 
-			// Door frame outer shadow
-			bgCtx.shadowColor = "rgba(0,0,0,0.15)";
-			bgCtx.shadowBlur = 20;
-			this.roundRect(
-				bgCtx,
-				this.l1FramePos.x,
-				this.l1FramePos.y,
-				this.l1FrameSize.w,
-				this.l1FrameSize.h,
-				6,
-			);
-			bgCtx.fillStyle = "#5D7A5E";
-			bgCtx.fill();
-			bgCtx.shadowBlur = 0;
-
-			// Frame interior (dark, textured)
-			bgCtx.fillStyle = "#2a2723";
-			this.roundRect(
-				bgCtx,
-				this.l1FramePos.x + 6,
-				this.l1FramePos.y + 6,
-				this.l1FrameSize.w - 12,
-				this.l1FrameSize.h - 12,
-				4,
-			);
-			bgCtx.fill();
-
-			// Inner highlight
-			bgCtx.strokeStyle = "rgba(255,255,255,0.08)";
-			bgCtx.lineWidth = 1;
-			this.roundRect(
-				bgCtx,
-				this.l1FramePos.x + 8,
-				this.l1FramePos.y + 8,
-				this.l1FrameSize.w - 16,
-				this.l1FrameSize.h - 16,
-				3,
-			);
-			bgCtx.stroke();
-
-			// Label
-			bgCtx.fillStyle = "#6f675d";
-			bgCtx.font = '14px "PingFang SC", sans-serif';
-			bgCtx.textAlign = "center";
-			bgCtx.fillText(
-				"← 将门板拖入此处",
-				this.l1FramePos.x + this.l1FrameSize.w / 2,
-				this.l1FramePos.y + this.l1FrameSize.h + 30,
-			);
+			if (isSolved && doorClosedImg) {
+				// Solved: fullscreen completion image
+				bgCtx.drawImage(doorClosedImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+			} else if (doorFrameImg) {
+				bgCtx.drawImage(doorFrameImg, this.l1FramePos.x, this.l1FramePos.y);
+			} else {
+				// Fallback: placeholder frame
+				this.drawPlaceholderFrame(bgCtx);
+			}
 		}
 
-		// Puzzle layer — door panel (draggable)
+		// ── Puzzle: door panel (draggable, hidden when solved) ──
 		const pCtx = this.canvasManager.getContext("puzzle");
-		if (pCtx && !this.puzzles[0].solved) {
-			// Panel shadow
-			pCtx.shadowColor = "rgba(0,0,0,0.25)";
-			pCtx.shadowBlur = 12;
-			pCtx.shadowOffsetX = 4;
-			pCtx.shadowOffsetY = 4;
-
-			// Panel body
-			pCtx.fillStyle = "#8B8070"; // bronze-ash
-			this.roundRect(
-				pCtx,
-				this.l1PanelPos.x,
-				this.l1PanelPos.y,
-				this.l1PanelSize.w,
-				this.l1PanelSize.h,
-				4,
-			);
-			pCtx.fill();
-			pCtx.shadowBlur = 0;
-			pCtx.shadowOffsetX = 0;
-			pCtx.shadowOffsetY = 0;
-
-			// Panel inner border
-			pCtx.strokeStyle = "#6f675d";
-			pCtx.lineWidth = 1;
-			this.roundRect(
-				pCtx,
-				this.l1PanelPos.x + 6,
-				this.l1PanelPos.y + 6,
-				this.l1PanelSize.w - 12,
-				this.l1PanelSize.h - 12,
-				2,
-			);
-			pCtx.stroke();
-
-			// Panel vertical seam
-			pCtx.strokeStyle = "rgba(0,0,0,0.1)";
-			pCtx.lineWidth = 1;
-			pCtx.beginPath();
-			pCtx.moveTo(
-				this.l1PanelPos.x + this.l1PanelSize.w / 2,
-				this.l1PanelPos.y + 12,
-			);
-			pCtx.lineTo(
-				this.l1PanelPos.x + this.l1PanelSize.w / 2,
-				this.l1PanelPos.y + this.l1PanelSize.h - 12,
-			);
-			pCtx.stroke();
+		if (pCtx && !isSolved) {
+			if (doorPanelImg) {
+				pCtx.drawImage(doorPanelImg, this.l1PanelPos.x, this.l1PanelPos.y);
+			} else {
+				this.drawPlaceholderPanel(pCtx);
+			}
 		}
 	}
 
+	/** Fallback: draw door frame placeholder (Canvas 2D). */
+	private drawPlaceholderFrame(ctx: CanvasRenderingContext2D): void {
+		ctx.shadowColor = "rgba(0,0,0,0.15)";
+		ctx.shadowBlur = 20;
+		this.roundRect(
+			ctx,
+			this.l1FramePos.x,
+			this.l1FramePos.y,
+			this.l1FrameSize.w,
+			this.l1FrameSize.h,
+			6,
+		);
+		ctx.fillStyle = "#5D7A5E";
+		ctx.fill();
+		ctx.shadowBlur = 0;
+
+		ctx.fillStyle = "#2a2723";
+		this.roundRect(
+			ctx,
+			this.l1FramePos.x + 6,
+			this.l1FramePos.y + 6,
+			this.l1FrameSize.w - 12,
+			this.l1FrameSize.h - 12,
+			4,
+		);
+		ctx.fill();
+
+		ctx.strokeStyle = "rgba(255,255,255,0.08)";
+		ctx.lineWidth = 1;
+		this.roundRect(
+			ctx,
+			this.l1FramePos.x + 8,
+			this.l1FramePos.y + 8,
+			this.l1FrameSize.w - 16,
+			this.l1FrameSize.h - 16,
+			3,
+		);
+		ctx.stroke();
+
+		ctx.fillStyle = "#6f675d";
+		ctx.font = '14px "PingFang SC", sans-serif';
+		ctx.textAlign = "center";
+		ctx.fillText(
+			"← 将门板拖入此处",
+			this.l1FramePos.x + this.l1FrameSize.w / 2,
+			this.l1FramePos.y + this.l1FrameSize.h + 30,
+		);
+	}
+
+	/** Fallback: draw door panel placeholder (Canvas 2D). */
+	private drawPlaceholderPanel(ctx: CanvasRenderingContext2D): void {
+		ctx.shadowColor = "rgba(0,0,0,0.25)";
+		ctx.shadowBlur = 12;
+		ctx.shadowOffsetX = 4;
+		ctx.shadowOffsetY = 4;
+
+		ctx.fillStyle = "#8B8070";
+		this.roundRect(
+			ctx,
+			this.l1PanelPos.x,
+			this.l1PanelPos.y,
+			this.l1PanelSize.w,
+			this.l1PanelSize.h,
+			4,
+		);
+		ctx.fill();
+		ctx.shadowBlur = 0;
+		ctx.shadowOffsetX = 0;
+		ctx.shadowOffsetY = 0;
+
+		ctx.strokeStyle = "#6f675d";
+		ctx.lineWidth = 1;
+		this.roundRect(
+			ctx,
+			this.l1PanelPos.x + 6,
+			this.l1PanelPos.y + 6,
+			this.l1PanelSize.w - 12,
+			this.l1PanelSize.h - 12,
+			2,
+		);
+		ctx.stroke();
+
+		ctx.strokeStyle = "rgba(0,0,0,0.1)";
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(
+			this.l1PanelPos.x + this.l1PanelSize.w / 2,
+			this.l1PanelPos.y + 12,
+		);
+		ctx.lineTo(
+			this.l1PanelPos.x + this.l1PanelSize.w / 2,
+			this.l1PanelPos.y + this.l1PanelSize.h - 12,
+		);
+		ctx.stroke();
+	}
+
 	/**
-	 * L2: Draw foreground layer with a "hole" (revealing BG content).
+	 * L2: Foreground layer with a hole, revealing background scenery.
 	 */
 	private renderL2(): void {
 		this.canvasManager.clearLayer("bg");
 		this.canvasManager.clearLayer("puzzle");
 
+		const bgSceneImg = this.getImg(ASSETS.tutorial.bgScene);
+		const isSolved = this.puzzles[1]?.solved;
+		const targetX = CX + this.l2TargetOffset.x;
+		const targetY = CY + this.l2TargetOffset.y;
+
+		// ── BG: scenic image + crosshair target marker ──
 		const bgCtx = this.canvasManager.getContext("bg");
 		if (bgCtx) {
 			this.drawBackground(bgCtx);
 
-			// Target position
-			const targetX = CX + this.l2TargetOffset.x;
-			const targetY = CY + this.l2TargetOffset.y;
+			if (bgSceneImg) {
+				// bg-scene is 2400×1600 — center the overflow
+				const bw = bgSceneImg.width;
+				const bh = bgSceneImg.height;
+				const bx = (CANVAS_WIDTH - bw) / 2;
+				const by = (CANVAS_HEIGHT - bh) / 2;
+				bgCtx.drawImage(bgSceneImg, bx, by);
+			}
 
-			// Outer glow ring
-			const glow = bgCtx.createRadialGradient(
-				targetX,
-				targetY,
-				20,
-				targetX,
-				targetY,
-				80,
-			);
-			glow.addColorStop(0, "rgba(184,115,51,0.4)");
-			glow.addColorStop(1, "rgba(184,115,51,0)");
-			bgCtx.fillStyle = glow;
-			bgCtx.beginPath();
-			bgCtx.arc(targetX, targetY, 80, 0, Math.PI * 2);
-			bgCtx.fill();
-
-			// Solid target circle
-			bgCtx.fillStyle = "#B87333"; // bronze-copper
-			bgCtx.beginPath();
-			bgCtx.arc(targetX, targetY, 40, 0, Math.PI * 2);
-			bgCtx.fill();
-
-			// Center star
-			bgCtx.fillStyle = "#f6f1e6";
-			bgCtx.font = "28px sans-serif";
-			bgCtx.textAlign = "center";
-			bgCtx.textBaseline = "middle";
-			bgCtx.fillText("✦", targetX, targetY);
-
-			// Label
-			bgCtx.fillStyle = "#6f675d";
-			bgCtx.font = '14px "PingFang SC", sans-serif';
-			bgCtx.textBaseline = "alphabetic";
-			bgCtx.fillText("对准此处", targetX, targetY + 70);
+			// ── Crosshair target marker on BG (always visible through hole) ──
+			if (!isSolved) {
+				this.drawCrosshair(bgCtx, targetX, targetY);
+			}
 		}
 
+		// ── Puzzle: Canvas-generated dark mask with hole (pannable) ──
 		const pCtx = this.canvasManager.getContext("puzzle");
-		if (pCtx && !this.puzzles[1].solved) {
-			// Foreground layer — solid fill with a circular hole
+		if (pCtx && !isSolved) {
 			const holeX = CX + this.l2PanOffset.x;
 			const holeY = CY + this.l2PanOffset.y;
 
-			// Full-canvas mask (no translate — the mask always fills the screen)
+			// Dark translucent mask covering the whole canvas
 			pCtx.fillStyle = "rgba(42,39,35,0.85)";
 			pCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-			// Cut out the hole at the panned position
+			// Cut out the circular hole (shows bg through it)
 			pCtx.save();
 			pCtx.globalCompositeOperation = "destination-out";
 			pCtx.beginPath();
@@ -512,7 +514,7 @@ export class ChapterTutorial extends ChapterBase {
 			pCtx.fill();
 			pCtx.restore();
 
-			// Hole border ring
+			// Hole border ring — cinnabar for interactivity hint
 			pCtx.strokeStyle = "#b64232";
 			pCtx.lineWidth = 2;
 			pCtx.setLineDash([6, 4]);
@@ -524,24 +526,98 @@ export class ChapterTutorial extends ChapterBase {
 	}
 
 	/**
-	 * L3: Draw two gears with rotation interaction.
-	 * All rendering on BG canvas to avoid multi-canvas compositing flicker.
+	 * Draw a crosshair/准星 marker at the target position.
+	 * Ink-line style — subtle but visible through the hole.
+	 */
+	private drawCrosshair(
+		ctx: CanvasRenderingContext2D,
+		cx: number,
+		cy: number,
+	): void {
+		const radius = 50;
+
+		// Outer faint ring
+		ctx.strokeStyle = "rgba(182,66,50,0.35)";
+		ctx.lineWidth = 2;
+		ctx.setLineDash([8, 6]);
+		ctx.beginPath();
+		ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+		ctx.stroke();
+		ctx.setLineDash([]);
+
+		// Crosshair lines — ink-line style
+		const gap = 16;
+		const len = 28;
+		ctx.strokeStyle = "#b64232";
+		ctx.lineWidth = 2;
+		ctx.beginPath();
+		// Top
+		ctx.moveTo(cx, cy - gap);
+		ctx.lineTo(cx, cy - gap - len);
+		// Bottom
+		ctx.moveTo(cx, cy + gap);
+		ctx.lineTo(cx, cy + gap + len);
+		// Left
+		ctx.moveTo(cx - gap, cy);
+		ctx.lineTo(cx - gap - len, cy);
+		// Right
+		ctx.moveTo(cx + gap, cy);
+		ctx.lineTo(cx + gap + len, cy);
+		ctx.stroke();
+
+		// Center dot
+		ctx.fillStyle = "#b64232";
+		ctx.beginPath();
+		ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+		ctx.fill();
+	}
+
+	/**
+	 * L3: Two gears with rotation interaction.
 	 */
 	private renderL3(): void {
 		this.canvasManager.clearLayer("bg");
 		this.canvasManager.clearLayer("puzzle");
-		// UI canvas is managed by overlay.render() + update()
+
+		const gearFixedImg = this.getImg(ASSETS.tutorial.gearFixed);
+		const gearMovableImg = this.getImg(ASSETS.tutorial.gearMovable);
+		const gearMeshedImg = this.getImg(ASSETS.tutorial.gearMeshed);
+
+		const l3Puzzle = this.puzzles[2] as RotationPuzzle;
+		const isSolved = l3Puzzle.state === PuzzleState.SOLVED;
 
 		const bgCtx = this.canvasManager.getContext("bg");
 		if (!bgCtx) return;
 
 		this.drawBackground(bgCtx);
 
-		const l3Puzzle = this.puzzles[2] as RotationPuzzle;
-		const isSolved = l3Puzzle.state === PuzzleState.SOLVED;
+		// ── Solved: fullscreen completion ──
+		if (isSolved && gearMeshedImg) {
+			bgCtx.drawImage(gearMeshedImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+			// Solved text overlay
+			bgCtx.fillStyle = "#C8A65A";
+			bgCtx.font = 'bold 28px "PingFang SC", "Noto Sans SC", sans-serif';
+			bgCtx.textAlign = "center";
+			bgCtx.textBaseline = "middle";
+			bgCtx.fillText(
+				"✓ 齿纹对齐！通关！",
+				CX,
+				this.l3MovableCenter.y + this.l3GearRadius + 50,
+			);
+			bgCtx.fillStyle = "#6f675d";
+			bgCtx.font = '16px "PingFang SC", "Noto Sans SC", sans-serif';
+			bgCtx.fillText(
+				"教学关完成 — 即将进入正式篇章",
+				CX,
+				this.l3MovableCenter.y + this.l3GearRadius + 80,
+			);
+			return;
+		}
 
-		// ── Snap position markers ──
-		this.drawSnapMarkers(bgCtx, this.l3FixedCenter, this.l3GearRadius + 12);
+		// ── Snap markers ──
+		if (!gearFixedImg) {
+			this.drawSnapMarkers(bgCtx, this.l3FixedCenter, this.l3GearRadius + 12);
+		}
 
 		// ── Near glow on movable gear ──
 		if (l3Puzzle.state === PuzzleState.NEAR && !isSolved) {
@@ -567,8 +643,8 @@ export class ChapterTutorial extends ChapterBase {
 			bgCtx.fill();
 		}
 
-		// ── Solved glow on both gears ──
-		if (isSolved) {
+		// ── Solved glow ──
+		if (isSolved && !gearMeshedImg) {
 			for (const center of [this.l3FixedCenter, this.l3MovableCenter]) {
 				const glow = bgCtx.createRadialGradient(
 					center.x,
@@ -587,38 +663,59 @@ export class ChapterTutorial extends ChapterBase {
 			}
 		}
 
-		// ── Fixed gear ──
-		this.drawGear(bgCtx, this.l3FixedCenter, this.l3GearRadius, 0, "#5D7A5E");
+		// ── Fixed gear (BG) ──
+		if (gearFixedImg) {
+			this.drawCentered(
+				bgCtx,
+				gearFixedImg,
+				this.l3FixedCenter.x,
+				this.l3FixedCenter.y,
+			);
+		} else {
+			this.drawGear(bgCtx, this.l3FixedCenter, this.l3GearRadius, 0, "#5D7A5E");
+		}
 
-		// ── Movable gear (always drawn — never disappears) ──
-		// Use snapped angle from puzzle when solved for exact alignment
+		// ── Movable gear (Puzzle canvas — needs rotation transform) ──
+		// Draw on BG canvas to avoid multi-canvas compositing flicker.
 		const movableAngle = isSolved ? l3Puzzle.currentAngle : this.l3Angle;
-		const movableColor = isSolved ? "#C8A65A" : "#B87333"; // gold when solved
-		this.drawGear(
-			bgCtx,
-			this.l3MovableCenter,
-			this.l3GearRadius,
-			movableAngle,
-			movableColor,
-		);
+		const movableColor = isSolved ? "#C8A65A" : "#B87333";
 
-		// ── Angle indicator line (shows current rotation) ──
-		if (!isSolved) {
+		if (gearMovableImg) {
+			bgCtx.save();
+			bgCtx.translate(this.l3MovableCenter.x, this.l3MovableCenter.y);
+			bgCtx.rotate(movableAngle);
+			bgCtx.drawImage(
+				gearMovableImg,
+				-gearMovableImg.width / 2,
+				-gearMovableImg.height / 2,
+			);
+			bgCtx.restore();
+		} else {
+			this.drawGear(
+				bgCtx,
+				this.l3MovableCenter,
+				this.l3GearRadius,
+				movableAngle,
+				movableColor,
+			);
+		}
+
+		// ── Angle indicator (not shown with real images — they're self-explanatory) ──
+		if (!gearMovableImg && !isSolved) {
 			const indicatorLen = this.l3GearRadius * 1.5;
-			const indicatorEndX =
+			const iEx =
 				this.l3MovableCenter.x + Math.cos(this.l3Angle) * indicatorLen;
-			const indicatorEndY =
+			const iEy =
 				this.l3MovableCenter.y + Math.sin(this.l3Angle) * indicatorLen;
 			bgCtx.strokeStyle = "rgba(201,166,90,0.4)";
 			bgCtx.lineWidth = 2;
 			bgCtx.setLineDash([4, 6]);
 			bgCtx.beginPath();
 			bgCtx.moveTo(this.l3MovableCenter.x, this.l3MovableCenter.y);
-			bgCtx.lineTo(indicatorEndX, indicatorEndY);
+			bgCtx.lineTo(iEx, iEy);
 			bgCtx.stroke();
 			bgCtx.setLineDash([]);
 
-			// Degree label
 			const degrees = Math.round((this.l3Angle * 180) / Math.PI);
 			bgCtx.fillStyle = "#6f675d";
 			bgCtx.font = "12px sans-serif";
@@ -631,8 +728,8 @@ export class ChapterTutorial extends ChapterBase {
 			);
 		}
 
-		// ── Solved state text ──
-		if (isSolved) {
+		// ── Solved text (image fallback) ──
+		if (isSolved && !gearMeshedImg) {
 			bgCtx.fillStyle = "#C8A65A";
 			bgCtx.font = 'bold 28px "PingFang SC", "Noto Sans SC", sans-serif';
 			bgCtx.textAlign = "center";
@@ -642,7 +739,6 @@ export class ChapterTutorial extends ChapterBase {
 				CX,
 				this.l3MovableCenter.y + this.l3GearRadius + 50,
 			);
-
 			bgCtx.fillStyle = "#6f675d";
 			bgCtx.font = '16px "PingFang SC", "Noto Sans SC", sans-serif';
 			bgCtx.fillText(
@@ -653,20 +749,42 @@ export class ChapterTutorial extends ChapterBase {
 		}
 
 		// ── Labels ──
-		bgCtx.fillStyle = "#6f675d";
-		bgCtx.font = '14px "PingFang SC", "Noto Sans SC", sans-serif';
-		bgCtx.textAlign = "center";
-		bgCtx.textBaseline = "alphabetic";
-		bgCtx.fillText(
-			"固定齿轮",
-			this.l3FixedCenter.x,
-			this.l3FixedCenter.y + this.l3GearRadius + 30,
-		);
+		if (!gearFixedImg) {
+			bgCtx.fillStyle = "#6f675d";
+			bgCtx.font = '14px "PingFang SC", "Noto Sans SC", sans-serif';
+			bgCtx.textAlign = "center";
+			bgCtx.textBaseline = "alphabetic";
+			bgCtx.fillText(
+				"固定齿轮",
+				this.l3FixedCenter.x,
+				this.l3FixedCenter.y + this.l3GearRadius + 30,
+			);
+		}
 	}
 
-	/**
-	 * Draw small tick marks at each snap position around a gear.
-	 */
+	/* ───────── Fallback drawing helpers (Canvas 2D) ───────── */
+
+	private roundRect(
+		ctx: CanvasRenderingContext2D,
+		x: number,
+		y: number,
+		w: number,
+		h: number,
+		r: number,
+	): void {
+		ctx.beginPath();
+		ctx.moveTo(x + r, y);
+		ctx.lineTo(x + w - r, y);
+		ctx.arcTo(x + w, y, x + w, y + r, r);
+		ctx.lineTo(x + w, y + h - r);
+		ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+		ctx.lineTo(x + r, y + h);
+		ctx.arcTo(x, y + h, x, y + h - r, r);
+		ctx.lineTo(x, y + r);
+		ctx.arcTo(x, y, x + r, y, r);
+		ctx.closePath();
+	}
+
 	private drawSnapMarkers(
 		ctx: CanvasRenderingContext2D,
 		center: Vec2,
@@ -682,9 +800,6 @@ export class ChapterTutorial extends ChapterBase {
 		}
 	}
 
-	/**
-	 * Draw a gear shape using Canvas 2D.
-	 */
 	private drawGear(
 		ctx: CanvasRenderingContext2D,
 		center: Vec2,
@@ -703,7 +818,6 @@ export class ChapterTutorial extends ChapterBase {
 		ctx.strokeStyle = "#2a2723";
 		ctx.lineWidth = 2;
 
-		// Gear path
 		ctx.beginPath();
 		for (let i = 0; i < teeth * 2; i++) {
 			const angle = (i * Math.PI) / teeth - Math.PI / 2;
@@ -717,7 +831,6 @@ export class ChapterTutorial extends ChapterBase {
 		ctx.fill();
 		ctx.stroke();
 
-		// Center dot
 		ctx.fillStyle = "#2a2723";
 		ctx.beginPath();
 		ctx.arc(0, 0, 6, 0, Math.PI * 2);

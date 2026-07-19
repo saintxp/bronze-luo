@@ -14,6 +14,7 @@
 import { CanvasManager } from "./engine/CanvasManager";
 import { DragHandler } from "./engine/DragHandler";
 import { VFXParticleManager } from "./engine/VFXParticleManager";
+import { AssetLoader } from "./assets/AssetLoader";
 import { ChapterTutorial } from "./chapters/ChapterTutorial";
 import { ChapterPrologue } from "./chapters/ChapterPrologue";
 import { ChapterErlitou } from "./chapters/ChapterErlitou";
@@ -37,6 +38,29 @@ import { eventBus } from "./utils/EventBus";
 import { createLogger, setLogLevel } from "./utils/logger";
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./utils/constants";
 import { getCachedPaperTexture } from "./ui/InkPaintingUtils";
+import { CurtainColophon } from "./ui/CurtainColophon";
+import { getChapterCopy } from "./data/chapterCopy";
+
+/* ───────── Chapter ID → Copy ID mapping ───────── */
+
+/** Map a chapter instance id to the matching CHAPTER_COPY entry id. */
+function resolveCopyId(chapterId: string): string {
+	// Direct match (e.g. "erlitou", "prologue", "grey", "caowei-jincheng")
+	if (getChapterCopy(chapterId)) return chapterId;
+
+	// Tutorial → tutorial-l1
+	if (chapterId === "tutorial") return "tutorial-l1";
+
+	// Multi-puzzle chapters → first sub-puzzle text
+	if (chapterId === "zhou") return "zhou-zhai";
+
+	// "donghan-*" → "han-*"
+	if (chapterId.startsWith("donghan-"))
+		return chapterId.replace("donghan-", "han-");
+
+	// Fallback
+	return "erlitou";
+}
 
 const log = createLogger("main");
 
@@ -60,14 +84,35 @@ class ChapterManager {
 	private transitionTimer = 0;
 	private paused = false;
 
-	constructor(chapters: ChapterBase[], canvasManager: CanvasManager) {
+	constructor(
+		chapters: ChapterBase[],
+		canvasManager: CanvasManager,
+		private curtainColophon: CurtainColophon,
+	) {
 		this.chapters = chapters;
 		this.canvasManager = canvasManager;
 
-		eventBus.on("chapter:complete", () => {
-			if (this.isTransitioning) return; // debounce
-			log.info("Chapter complete event — advancing to next");
-			this.nextChapter();
+		eventBus.on("chapter:complete", ({ chapterId }: { chapterId: string }) => {
+			if (this.isTransitioning) return;
+
+			// Prologue has its own colophon BG image; CurtainColophon runs on top
+			if (chapterId === "prologue") {
+				log.info("Prologue colophon BG ready — showing curtain text");
+			}
+
+			log.info(`Chapter complete: ${chapterId} — showing colophon`);
+
+			const copyId = resolveCopyId(chapterId);
+			const copy = getChapterCopy(copyId);
+			if (copy) {
+				this.curtainColophon.show(copy.text, copy.color, () => {
+					log.info("Colophon finished — advancing to next chapter");
+					this.nextChapter();
+				});
+			} else {
+				log.warn(`No colophon text for chapter: ${chapterId}`);
+				this.nextChapter();
+			}
 		});
 	}
 
@@ -230,7 +275,10 @@ function init(): void {
 	const canvasManager = new CanvasManager();
 	canvasManager.init("app");
 
-	// 2. Drag handler
+	// 2. Asset loader
+	const assetLoader = new AssetLoader();
+
+	// 3. Drag handler
 	const dragHandler = new DragHandler();
 
 	// 3. Audio
@@ -246,10 +294,18 @@ function init(): void {
 	if (!vfxCanvas) throw new Error("VFX canvas layer not found");
 	const particleManager = new VFXParticleManager(vfxCanvas);
 
+	// 4.6 Curtain colophon — chapter-completion text bead-curtain
+	const curtainColophon = new CurtainColophon(canvasManager);
+
 	// 5. Chapters (expand incrementally as Steps 3-6 add each chapter)
 	const chapters: ChapterBase[] = [
-		new ChapterTutorial(canvasManager, dragHandler),
-		new ChapterPrologue(canvasManager, dragHandler, particleManager),
+		new ChapterTutorial(canvasManager, dragHandler, assetLoader),
+		new ChapterPrologue(
+			canvasManager,
+			dragHandler,
+			particleManager,
+			assetLoader,
+		),
 		new ChapterErlitou(
 			canvasManager,
 			dragHandler,
@@ -269,8 +325,12 @@ function init(): void {
 		new ChapterDemoEnd(canvasManager),
 	];
 
-	// 6. Chapter manager
-	const chapterManager = new ChapterManager(chapters, canvasManager);
+	// 6. Chapter manager (colophon drives transition timing)
+	const chapterManager = new ChapterManager(
+		chapters,
+		canvasManager,
+		curtainColophon,
+	);
 
 	// ── Debug: window.__jumpTo(chapterIndex) for screenshot capture ──
 	(window as any).__jumpTo = (index: number) => {
@@ -346,6 +406,7 @@ function init(): void {
 		stampEffect.render(now);
 		definitionPopup.render(now);
 		videoTrigger.render(now);
+		curtainColophon.render(now);
 
 		requestAnimationFrame(gameLoop);
 	}
@@ -356,6 +417,34 @@ function init(): void {
 	window.addEventListener("resize", () => {
 		canvasManager.resize();
 		hud.resize(canvasManager.getDisplayRect());
+	});
+
+	// 10. Curtain interaction: mouse pushes chains + click advances
+	// CanvasManager sets all canvases to pointer-events:none; only the puzzle
+	// canvas is re-enabled by DragHandler. Listen on window so input always
+	// reaches the curtain regardless of which layer is event-active.
+	function updateCurtainPointer(e: PointerEvent): void {
+		const r = canvasManager.getDisplayRect();
+		const x = (e.clientX - r.left) * (CANVAS_WIDTH / r.width);
+		const y = (e.clientY - r.top) * (CANVAS_HEIGHT / r.height);
+		const inside = x >= 0 && x <= CANVAS_WIDTH && y >= 0 && y <= CANVAS_HEIGHT;
+		curtainColophon.setMouse(x, y, inside);
+	}
+	window.addEventListener("pointermove", updateCurtainPointer);
+	window.addEventListener("pointerleave", () => {
+		curtainColophon.setMouse(-999, -999, false);
+	});
+	window.addEventListener("pointerup", (e: PointerEvent) => {
+		if (curtainColophon.isHolding()) {
+			e.preventDefault();
+			curtainColophon.advance();
+		}
+	});
+	window.addEventListener("keydown", (e: KeyboardEvent) => {
+		if (curtainColophon.isHolding() && e.key !== "Escape") {
+			e.preventDefault();
+			curtainColophon.advance();
+		}
 	});
 
 	log.info("Phase 2 ready — waiting for chapters");

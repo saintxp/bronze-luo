@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>铜声·识洛 — 教学关珠帘演示</title>
+    <style>
+      :root {
+        --paper: #f6f1e6;
+        --ink: #201c18;
+        --muted: #6f675d;
+        --cinnabar: #b64232;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #1a1a18;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        gap: 8px;
+        font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+        color: #ccc;
+      }
+      .stage {
+        position: relative;
+        width: 960px;
+        height: 540px;
+        background: var(--paper);
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 2px 20px rgba(0, 0, 0, 0.35);
+      }
+      canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        cursor: none;
+        touch-action: none;
+      }
+      .cursor-dot {
+        position: fixed;
+        z-index: 999;
+        width: 12px;
+        height: 12px;
+        border: 1px solid rgba(46, 37, 31, 0.72);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        opacity: 0;
+      }
+      .cursor-dot.active {
+        opacity: 1;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      button {
+        background: var(--cinnabar);
+        color: #fff;
+        border: none;
+        padding: 7px 16px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      button:hover {
+        background: #d45342;
+      }
+      button:disabled {
+        background: #444;
+        cursor: default;
+      }
+      button.sec {
+        background: transparent;
+        border: 1px solid #444;
+        color: #999;
+      }
+      button.sec:hover {
+        border-color: #777;
+        color: #ccc;
+      }
+      select {
+        padding: 5px 8px;
+        border-radius: 3px;
+        background: #333;
+        color: #ccc;
+        border: 1px solid #444;
+        font-size: 12px;
+      }
+      .info {
+        font-size: 11px;
+        color: #777;
+        max-width: 600px;
+        text-align: center;
+        line-height: 1.4;
+      }
+      .label {
+        padding: 2px 8px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 2px;
+        font-size: 11px;
+        color: #999;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage" id="stage">
+      <canvas id="c"></canvas>
+    </div>
+    <div class="cursor-dot" id="cursor"></div>
+
+    <div class="controls">
+      <span class="label">教学关</span>
+      <select id="levelSelect">
+        <option value="l1">L1 · 对齐 — 门板</option>
+        <option value="l2">L2 · 透视 — 灰页</option>
+        <option value="l3">L3 · 合力 — 龙门</option>
+      </select>
+      <button id="btnSolve">✓ 完成谜题</button>
+      <button id="btnSkip" class="sec">跳过珠帘</button>
+    </div>
+    <div class="info" id="status">拖拽门板对齐门框，完成教学关 L1</div>
+
+    <script>
+      /* ═══════════════════════════════════════════
+   铜声·识洛 — 教学关珠帘独立演示 v2
+   布局：章题→谜题场景→珠帘（横长方形）
+   ═══════════════════════════════════════════ */
+
+      const W = 1920,
+        H = 1080;
+
+      /* ─── 文案 ─── */
+      const COPY = {
+        l1: {
+          color: "#2a2723",
+          text: "一阖一辟谓之变往来不穷谓之通洛阳三千八百年无非开合城门开合范盖开合册页开合门板对上框的一刻你学会了这座城的第一种语言对齐合范在此一刻——先秦·《易·系辞》",
+        },
+        l2: {
+          color: "#2a2723",
+          text: "凿户牖以为室当其无有室之用洛阳的土层之下还有土层裂缝之下还有裂缝目光从灰页的缝隙穿透五层商代的玄鸟在茧中沉睡一层之外别有洞天——先秦·《老子》",
+        },
+        l3: {
+          color: "#2a2723",
+          text: "二人同心其利断金龙门崖壁前工匠握凿你覆其手双力共振凿尖沿石纹劈入一千五百年间每一锤都是两个人的重量合力者洛阳的第二种语言——先秦·《周易·系辞上》",
+        },
+      };
+      const TITLES = {
+        l1: { title: "教学关 L1 · 对齐", sub: "门板对上框的一刻" },
+        l2: { title: "教学关 L2 · 透视", sub: "灰页缝隙穿透五层" },
+        l3: { title: "教学关 L3 · 合力", sub: "双力共振凿入崖壁" },
+      };
+
+      /* ─── Canvas setup (once, not per-frame) ─── */
+      const canvas = document.getElementById("c");
+      const cursorEl = document.getElementById("cursor");
+      const ctx = canvas.getContext("2d");
+      const stage = document.getElementById("stage");
+
+      let scaleX = 1,
+        scaleY = 1;
+      function resizeCanvas() {
+        const r = stage.getBoundingClientRect();
+        canvas.width = Math.round(r.width * devicePixelRatio);
+        canvas.height = Math.round(r.height * devicePixelRatio);
+        scaleX = canvas.width / W;
+        scaleY = canvas.height / H;
+        ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+      }
+      resizeCanvas();
+      window.addEventListener("resize", resizeCanvas);
+
+      /* ─── State ─── */
+      let level = "l1";
+      let scenePhase = "puzzle"; // puzzle | solved | curtain | done
+      let curtainPhase = "idle",
+        curtainStart = 0;
+      let curtainChains = [],
+        curtainColor = "#2a2723";
+
+      /* ─── Puzzle (positions from ChapterTutorial.ts) ─── */
+      // L1: door panel (200,340) drags right into frame (860,340)
+      let doorX = 0,
+        doorDrag = false,
+        doorDragBase = 0;
+      const DOOR_W = 180,
+        DOOR_H = 360,
+        FRAME_W = 200,
+        FRAME_H = 400;
+      const FX = 860,
+        FY = 340, // frame top-left (game: l1FramePos)
+        DX0 = 200, // panel start x (game: l1PanelPos)
+        DY0 = 340, // panel y (game: l1PanelPos)
+        SNAP = 35;
+      // L2: scroll layers down to reveal
+      let l2Scroll = 0,
+        l2Drag = false,
+        l2BaseY = 0,
+        l2BaseScroll = 0;
+      const L2_N = 5,
+        L2_HOLE = 60,
+        L2_TGT = 320;
+      // L3: two gears (game: l3FixedCenter, l3MovableCenter)
+      let l3Angle = 0,
+        l3Drag = false,
+        l3BaseA = 0,
+        l3BaseX = 0;
+      const L3_CX = 810, // midpoint of two gears
+        L3_CY = 500,
+        L3_GR = 100,
+        L3_TGT = Math.PI / 4;
+
+      /* ─── Curtain physics ─── */
+      const FS = 18,
+        RG = 20;
+      const FRIC = 0.97,
+        GRAV = 1.2,
+        PASS = 5;
+      const ASM = 1400,
+        DSP = 1000;
+      const CURT_W = W * 0.88,
+        MAX_C = 28,
+        MIN_C = 4;
+      const mouse = { x: -999, y: -999, ox: -999, oy: -999, on: false };
+      const MR = 40,
+        MS = 0.82;
+      let curT = H * 0.6; // dynamic curtain top Y, set in buildCurtain
+
+      function buildCurtain(text, color) {
+        curtainColor = color;
+        curtainChains = [];
+        const total = text.length;
+
+        // Density-driven fabric, text centered inside.
+        const left = (W - CURT_W) / 2;
+        const densityCols = Math.max(MIN_C, Math.floor(CURT_W / 32));
+        // 8 chars per text column.
+        const textColsNeeded = Math.ceil(total / 8);
+        let textCols = Math.max(
+          MIN_C,
+          Math.min(textColsNeeded, densityCols, MAX_C),
+        );
+
+        // Match parity with densityCols so the text block snaps to the exact
+        // fabric center and never drifts left/right due to rounding.
+        if (textCols % 2 !== densityCols % 2) {
+          if (textCols + 1 <= Math.min(densityCols, MAX_C)) {
+            textCols += 1;
+          } else {
+            textCols -= 1;
+          }
+        }
+
+        const startCol = (densityCols - textCols) / 2;
+        const rows = Math.ceil(total / textCols);
+
+        // Dynamic topY — keeps curtain within canvas.
+        curT = Math.min(H * 0.6, H - rows * RG - 10);
+
+        const scx = W * 0.5,
+          scy = H * 0.55,
+          scR = Math.max(W, H) * 0.42;
+        const wb = (Math.PI * 5) / 4,
+          wd = Math.max(W, H) * 0.52;
+
+        for (let col = 0; col < densityCols; col++) {
+          const c = [];
+          const x =
+            densityCols > 1 ? left + (col * CURT_W) / (densityCols - 1) : W / 2;
+          const isTextCol = col >= startCol && col < startCol + textCols;
+          const rc = isTextCol ? startCol + textCols - 1 - col : -1;
+
+          for (let row = 0; row <= rows; row++) {
+            const y = curT + row * RG;
+            const pin = row === 0;
+            let ch = "";
+            if (isTextCol && row > 0) {
+              const gi = rc * rows + (row - 1);
+              if (gi < total) ch = text[gi];
+            }
+            const sa = Math.random() * Math.PI * 2;
+            const sd = scR * (0.5 + Math.random() * 0.5);
+            const sx = scx + Math.cos(sa) * sd,
+              sy = scy + Math.sin(sa) * sd * 0.6;
+            const wa = wb + (Math.random() - 0.5) * 1.0;
+            const wdd = wd * (0.6 + Math.random() * 0.7);
+            c.push({
+              x: sx,
+              y: sy,
+              ox: sx,
+              oy: sy,
+              ax: x,
+              ay: y,
+              pinned: pin,
+              rl: row === 0 ? 0 : RG,
+              char: ch,
+              sx,
+              sy,
+              wx: x + Math.cos(wa) * wdd,
+              wy: y + Math.sin(wa) * wdd,
+            });
+          }
+          curtainChains.push(c);
+        }
+      }
+
+      function injectMouse() {
+        if (!mouse.on || !curtainChains.length) return;
+        const r = canvas.getBoundingClientRect();
+        const mx = (mouse.x / r.width) * W,
+          my = (mouse.y / r.height) * H;
+        const omx = (mouse.ox / r.width) * W,
+          omy = (mouse.oy / r.height) * H;
+        const dx = mx - omx,
+          dy = my - omy;
+        const sp = Math.hypot(dx, dy);
+        if (sp < 0.01 || sp > 120) return;
+        for (const c of curtainChains)
+          for (const p of c) {
+            if (p.pinned) continue;
+            const d = Math.hypot(p.x - omx, p.y - omy);
+            if (d >= MR) continue;
+            const f = 1 - d / MR;
+            p.x += dx * MS * f;
+            p.y += dy * MS * f;
+          }
+      }
+
+      function intg() {
+        for (const c of curtainChains)
+          for (const p of c) {
+            if (p.pinned) continue;
+            const vx = (p.x - p.ox) * FRIC,
+              vy = (p.y - p.oy) * FRIC;
+            p.ox = p.x;
+            p.oy = p.y;
+            p.x += vx;
+            p.y += vy + GRAV;
+          }
+      }
+      function cnstr() {
+        for (let pass = 0; pass < PASS; pass++)
+          for (const c of curtainChains) {
+            c[0].x = c[0].ax;
+            c[0].y = c[0].ay;
+            for (let i = 1; i < c.length; i++) {
+              const a = c[i - 1],
+                b = c[i];
+              const dx = b.x - a.x,
+                dy = b.y - a.y;
+              const d = Math.max(0.0001, Math.hypot(dx, dy));
+              const diff = (d - b.rl) / d;
+              if (a.pinned) {
+                b.x -= dx * diff;
+                b.y -= dy * diff;
+              } else {
+                const cx = dx * diff * 0.5,
+                  cy = dy * diff * 0.5;
+                a.x += cx;
+                a.y += cy;
+                b.x -= cx;
+                b.y -= cy;
+              }
+            }
+          }
+      }
+
+      function updCurtain(now) {
+        if (!curtainChains.length || curtainPhase === "idle") return;
+        const el = now - curtainStart;
+        if (curtainPhase === "assembling") {
+          const t = Math.min(el / ASM, 1),
+            ease = t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
+          for (const c of curtainChains)
+            for (const p of c) {
+              p.x = p.sx + (p.ax - p.sx) * ease;
+              p.y = p.sy + (p.ay - p.sy) * ease;
+              p.ox = p.x;
+              p.oy = p.y;
+            }
+          if (t >= 1) {
+            curtainPhase = "holding";
+            curtainStart = now;
+            // initial wobble so physics is visible
+            for (const c of curtainChains)
+              for (const p of c) {
+                if (p.pinned) continue;
+                p.x += (Math.random() - 0.5) * 12;
+                p.y += (Math.random() - 0.5) * 6;
+                p.ox = p.x - (p.x - p.ox) * 0.5;
+              }
+          }
+        } else if (curtainPhase === "holding") {
+          injectMouse();
+          mouse.ox = mouse.x;
+          mouse.oy = mouse.y;
+          intg();
+          cnstr();
+        } else if (curtainPhase === "dispersing") {
+          const t = Math.min(el / DSP, 1),
+            ease = t * t;
+          for (const c of curtainChains)
+            for (const p of c) {
+              if (p.pinned) {
+                p.x = p.ax + (p.wx - p.ax) * ease * 0.3;
+                p.y = p.ay + (p.wy - p.ay) * ease * 0.3;
+              } else {
+                p.ox = p.x;
+                p.oy = p.y;
+                p.x += (p.ax + (p.wx - p.ax) * ease - p.x) * 0.12;
+                p.y += (p.ay + (p.wy - p.ay) * ease - p.y) * 0.12 + GRAV * 1.5;
+              }
+            }
+          cnstr();
+          if (t >= 1) {
+            curtainChains = [];
+            curtainPhase = "idle";
+            scenePhase = "done";
+            updUI();
+          }
+        }
+      }
+
+      function drawCurtain() {
+        if (!curtainChains.length) return;
+        const cols = curtainChains.length;
+
+        ctx.save();
+
+        // ── Draw characters only (no beads, no threads) ──
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `500 ${FS}px "Songti SC","Noto Serif SC",SimSun,serif`;
+        ctx.fillStyle = "rgba(32,28,24,0.82)";
+        for (const c of curtainChains)
+          for (let i = 1; i < c.length; i++)
+            if (c[i].char) ctx.fillText(c[i].char, c[i].x, c[i].y + 0.5);
+
+        ctx.restore();
+      }
+
+      /* ─── Scene draw ─── */
+      function drawScene() {
+        ctx.save();
+        ctx.fillStyle = "#f6f1e6";
+        ctx.fillRect(0, 0, W, H);
+        // faint grid
+        ctx.strokeStyle = "rgba(32,28,24,0.03)";
+        ctx.lineWidth = 0.5;
+        for (let g = 0; g < W; g += 96) {
+          ctx.beginPath();
+          ctx.moveTo(g, 0);
+          ctx.lineTo(g, H);
+          ctx.stroke();
+        }
+        for (let g = 0; g < H; g += 72) {
+          ctx.beginPath();
+          ctx.moveTo(0, g);
+          ctx.lineTo(W, g);
+          ctx.stroke();
+        }
+        // anchor line
+        ctx.strokeStyle = "rgba(32,28,24,0.09)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 9]);
+        ctx.beginPath();
+        ctx.moveTo(W * 0.08, CURT_Y);
+        ctx.lineTo(W * 0.92, CURT_Y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(156,108,46,0.25)";
+        ctx.beginPath();
+        ctx.arc(W * 0.08, CURT_Y, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(W * 0.92, CURT_Y, 2, 0, Math.PI * 2);
+        ctx.fill();
+        // title
+        const m = TITLES[level];
+        ctx.fillStyle = "rgba(32,28,24,0.55)";
+        ctx.font = `500 ${Math.round(FS * 1.5)}px "Songti SC","Noto Serif SC",Georgia,serif`;
+        ctx.textAlign = "center";
+        ctx.fillText(m.title, W / 2, 50);
+        ctx.fillStyle = "rgba(32,28,24,0.28)";
+        ctx.font = `400 ${Math.round(FS * 0.85)}px "Songti SC","Noto Serif SC",sans-serif`;
+        ctx.fillText(m.sub, W / 2, 82);
+
+        // scene area indicator
+        ctx.fillStyle = "rgba(32,28,24,0.015)";
+        ctx.fillRect(W * 0.1, 100, W * 0.8, CURT_Y - 120);
+
+        if (level === "l1") drawL1();
+        else if (level === "l2") drawL2();
+        else drawL3();
+        ctx.restore();
+      }
+
+      function drawL1() {
+        const solved = scenePhase !== "puzzle";
+        // frame (top-left: FX, FY, matching game l1FramePos)
+        ctx.strokeStyle = "rgba(32,28,24,0.7)";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(FX, FY, FRAME_W, FRAME_H);
+        ctx.strokeStyle = "rgba(32,28,24,0.18)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 5]);
+        ctx.beginPath();
+        ctx.moveTo(FX + 10, FY + 10);
+        ctx.lineTo(FX + FRAME_W - 10, FY + FRAME_H - 10);
+        ctx.moveTo(FX + FRAME_W - 10, FY + 10);
+        ctx.lineTo(FX + 10, FY + FRAME_H - 10);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // door
+        const dx = solved ? FX - DOOR_W : DX0 + doorX;
+        ctx.fillStyle = "rgba(182,66,50,0.10)";
+        ctx.fillRect(dx, DY0, DOOR_W, DOOR_H);
+        ctx.strokeStyle = "rgba(182,66,50,0.50)";
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(dx, DY0, DOOR_W, DOOR_H);
+        // handle
+        ctx.fillStyle = "rgba(156,108,46,0.60)";
+        ctx.beginPath();
+        ctx.arc(dx + DOOR_W - 30, DY0 + DOOR_H / 2, 7, 0, Math.PI * 2);
+        ctx.fill();
+        // hint arrow
+        if (!solved) {
+          const ax = dx + DOOR_W + 14,
+            ay = DY0 + DOOR_H / 2;
+          ctx.strokeStyle = "rgba(32,28,24,0.15)";
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 4]);
+          ctx.beginPath();
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(FX + 12, FY + FRAME_H / 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        if (solved) {
+          ctx.fillStyle = "rgba(32,28,24,0.07)";
+          ctx.font = `${FS * 1.1}px "Songti SC","Noto Serif SC",sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillText("✓ 门已合上", FX + FRAME_W / 2, FY + FRAME_H + 38);
+        }
+      }
+
+      function drawL2() {
+        const cx = W / 2,
+          by = 180,
+          lh = 36,
+          gap = 8;
+        const solved = scenePhase !== "puzzle";
+        for (let i = 0; i < L2_N; i++) {
+          const y = by + i * (lh + gap) - l2Scroll;
+          const alpha = 0.3 + i * 0.1;
+          ctx.fillStyle = `rgba(32,28,24,${alpha})`;
+          ctx.fillRect(cx - 180, y, 360, lh);
+          ctx.fillStyle = "rgba(246,241,230,0.65)";
+          ctx.font = `400 ${FS * 0.7}px "Songti SC","Noto Serif SC",sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillText(`第 ${L2_N - i} 层`, cx, y + lh / 2 + 5);
+          if (L2_N - i === 3) {
+            ctx.save();
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.beginPath();
+            ctx.arc(cx + 40, y + lh / 2, L2_HOLE, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+        const hy = by + 2 * (lh + gap) - l2Scroll;
+        const rev = Math.min(1, Math.max(0, l2Scroll / L2_TGT));
+        ctx.globalAlpha = 0.12 + rev * 0.65;
+        ctx.fillStyle = "#b64232";
+        ctx.font = `400 ${FS * 0.8}px "Songti SC","Noto Serif SC",serif`;
+        ctx.textAlign = "center";
+        ctx.fillText("玄鸟", cx + 40, hy + lh / 2 + 5);
+        ctx.globalAlpha = 1;
+        if (!solved) {
+          ctx.fillStyle = "rgba(32,28,24,0.10)";
+          ctx.font = `${FS * 0.78}px "Songti SC","Noto Serif SC",sans-serif`;
+          ctx.fillText("↓ 向下滚动穿透灰页", cx, by + L2_N * (lh + gap) + 28);
+        }
+        if (solved) {
+          ctx.fillStyle = "rgba(32,28,24,0.07)";
+          ctx.font = `${FS * 1.1}px "Songti SC","Noto Serif SC",sans-serif`;
+          ctx.fillText("✓ 已穿透第五层", cx, by + L2_N * (lh + gap) + 50);
+        }
+      }
+
+      function drawL3() {
+        // Game: two gears — fixed left (700,500), movable right (920,500)
+        const fcx = 700,
+          fcy = 500,
+          mcx = 920,
+          mcy = 500,
+          gr = L3_GR;
+        const solved = scenePhase !== "puzzle";
+
+        // Inter-gear line
+        ctx.strokeStyle = "rgba(32,28,24,0.10)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 5]);
+        ctx.beginPath();
+        ctx.moveTo(fcx + gr + 6, fcy);
+        ctx.lineTo(mcx - gr - 6, mcy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Fixed gear (left)
+        drawGear(fcx, fcy, gr, 0, "rgba(32,28,24,0.35)");
+
+        // Movable gear (right) — player rotates this
+        drawGear(mcx, mcy, gr, l3Angle, "rgba(182,66,50,0.40)");
+
+        // Target marker on movable gear
+        const tx = mcx + Math.cos(L3_TGT) * (gr + 22),
+          ty = mcy + Math.sin(L3_TGT) * (gr + 22);
+        ctx.strokeStyle = "rgba(32,28,24,0.14)";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.arc(tx, ty, 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        if (solved) {
+          ctx.fillStyle = "rgba(32,28,24,0.07)";
+          ctx.font = `${FS * 1.1}px "Songti SC","Noto Serif SC",sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillText("✓ 双力共振完成", mcx, mcy + gr + 48);
+        }
+        if (!solved) {
+          ctx.fillStyle = "rgba(32,28,24,0.09)";
+          ctx.font = `${FS * 0.78}px "Songti SC","Noto Serif SC",sans-serif`;
+          ctx.fillText("↻ 旋转右齿轮对齐标记", L3_CX, fcy + gr + 36);
+        }
+      }
+
+      function drawGear(cx, cy, r, angle, color) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        const t = 8;
+        ctx.fillStyle = color.replace("0.40", "0.10").replace("0.35", "0.08");
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < t * 2; i++) {
+          const a = (i / (t * 2)) * Math.PI * 2,
+            rr = i % 2 === 0 ? r : r * 0.76;
+          const px = Math.cos(a) * rr,
+            py = Math.sin(a) * rr;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "rgba(32,28,24,0.25)";
+        ctx.beginPath();
+        ctx.arc(0, 0, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      /* ─── UI ─── */
+      function updUI() {
+        const b = document.getElementById("btnSolve"),
+          s = document.getElementById("btnSkip");
+        const st = document.getElementById("status");
+        if (scenePhase === "puzzle") {
+          b.textContent = "✓ 完成谜题";
+          b.disabled = false;
+          s.disabled = true;
+          st.textContent = {
+            l1: "→ 向右拖拽门板对齐门框",
+            l2: "↓ 向下滚动穿透灰页",
+            l3: "↻ 旋转右齿轮对齐标记",
+          }[level];
+        } else if (scenePhase === "done") {
+          b.textContent = "重新开始";
+          b.disabled = false;
+          s.disabled = true;
+          st.textContent = "珠帘已散 · 切换关卡或重新开始";
+        } else {
+          b.disabled = true;
+          s.disabled = false;
+          st.textContent = "珠帘演示中 — 鼠标划过感受拖动";
+        }
+      }
+
+      /* ─── Actions ─── */
+      function solvePuzzle() {
+        scenePhase = "curtain";
+        const cp = COPY[level];
+        buildCurtain(cp.text, cp.color);
+        curtainPhase = "assembling";
+        curtainStart = performance.now();
+        updUI();
+      }
+      function skipCurtain() {
+        curtainChains = [];
+        curtainPhase = "idle";
+        scenePhase = "done";
+        updUI();
+      }
+      function resetLevel() {
+        scenePhase = "puzzle";
+        curtainChains = [];
+        curtainPhase = "idle";
+        doorX = 0;
+        doorDrag = false;
+        l2Scroll = 0;
+        l3Angle = 0;
+        updUI();
+      }
+
+      /* ─── Pointer (fixed: use scaleX/Y from canvas setup) ─── */
+      function cpos(e) {
+        const r = canvas.getBoundingClientRect();
+        return {
+          x: ((e.clientX - r.left) / r.width) * W,
+          y: ((e.clientY - r.top) / r.height) * H,
+        };
+      }
+
+      canvas.addEventListener("pointerdown", (e) => {
+        if (scenePhase !== "puzzle") return;
+        const p = cpos(e);
+        if (level === "l1") {
+          if (
+            p.x >= DX0 &&
+            p.x <= DX0 + DOOR_W &&
+            p.y >= DY0 &&
+            p.y <= DY0 + DOOR_H
+          ) {
+            doorDrag = true;
+            doorDragBase = p.x - doorX;
+          }
+        } else if (level === "l2") {
+          l2Drag = true;
+          l2BaseY = p.y;
+          l2BaseScroll = l2Scroll;
+        } else if (level === "l3") {
+          const dx = p.x - 920,
+            dy = p.y - 500;
+          if (Math.hypot(dx, dy) < L3_GR + 20) {
+            l3Drag = true;
+            l3BaseA = l3Angle;
+            l3BaseX = p.x;
+          }
+        }
+      });
+
+      canvas.addEventListener("pointermove", (e) => {
+        const r = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - r.left;
+        mouse.y = e.clientY - r.top;
+        mouse.on = true;
+        cursorEl.style.left = e.clientX + "px";
+        cursorEl.style.top = e.clientY + "px";
+
+        if (scenePhase !== "puzzle") return;
+        const p = cpos(e);
+        if (doorDrag) {
+          doorX = p.x - doorDragBase;
+          if (DX0 + doorX + DOOR_W > FX - SNAP) doorX = FX - DOOR_W - DX0;
+        } else if (l2Drag) {
+          l2Scroll = Math.max(0, l2BaseScroll + (l2BaseY - p.y));
+        } else if (l3Drag) {
+          l3Angle = l3BaseA + (p.x - l3BaseX) * 0.012;
+        }
+      });
+
+      canvas.addEventListener("pointerup", () => {
+        doorDrag = false;
+        l2Drag = false;
+        l3Drag = false;
+      });
+      canvas.addEventListener("pointerenter", (e) => {
+        mouse.on = true;
+        cursorEl.classList.add("active");
+        const r = canvas.getBoundingClientRect();
+        mouse.x = mouse.ox = e.clientX - r.left;
+        mouse.y = mouse.oy = e.clientY - r.top;
+      });
+      canvas.addEventListener("pointerleave", () => {
+        mouse.on = false;
+        cursorEl.classList.remove("active");
+      });
+
+      /* ─── Loop ─── */
+      function loop(now) {
+        ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        drawScene();
+        if (scenePhase !== "puzzle" && scenePhase !== "done") updCurtain(now);
+        drawCurtain();
+        if (scenePhase === "done") {
+          ctx.fillStyle = "rgba(246,241,230,0.95)";
+          ctx.fillRect(0, curT, W, H - curT);
+          const dy = curT + (H - curT) * 0.35;
+          ctx.fillStyle = "rgba(32,28,24,0.32)";
+          ctx.font = `${FS * 1.15}px "Songti SC","Noto Serif SC",serif`;
+          ctx.textAlign = "center";
+          ctx.fillText("— 章节完成 —", W / 2, dy);
+          ctx.fillStyle = "rgba(32,28,24,0.15)";
+          ctx.font = `${FS * 0.82}px "Songti SC","Noto Serif SC",sans-serif`;
+          ctx.fillText("切换关卡 · 重新开始", W / 2, dy + FS * 1.8);
+        }
+        requestAnimationFrame(loop);
+      }
+
+      /* ─── Init ─── */
+      document
+        .getElementById("btnSolve")
+        .addEventListener("click", solvePuzzle);
+      document.getElementById("btnSkip").addEventListener("click", skipCurtain);
+      document.getElementById("levelSelect").addEventListener("change", (e) => {
+        level = e.target.value;
+        resetLevel();
+      });
+      updUI();
+      requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>
