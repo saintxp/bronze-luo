@@ -50,6 +50,8 @@ export const ASSETS = {
 		copperFloodCorners: assetPath("prologue", "copper-flood-corners.png"),
 		/** 替换 CurtainColophon 珠帘 → 静态图片：序章完成时 "河出图 洛出书" 文字 */
 		colophonText: assetPath("prologue", "colophon-text.png"),
+		/** Seedance Tier1 视频：铜液四角合拢吞没地图 */
+		copperFloodVideo: assetPath("prologue", "copper-flood.mp4"),
 	},
 
 	/* ───────── Phase 2: Erlitou ───────── */

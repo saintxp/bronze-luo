@@ -94,6 +94,8 @@ export class ChapterPrologue extends ChapterBase {
 	private boundPointerUp: ((e: Event) => void) | null = null;
 	private boundDebugClick: ((e: MouseEvent) => void) | null = null;
 	private boundColophonClick: ((e: Event) => void) | null = null;
+	private copperFloodVideo: HTMLVideoElement | null = null;
+	private copperFloodVideoReady = false;
 
 	constructor(
 		canvasManager: CanvasManager,
@@ -119,6 +121,27 @@ export class ChapterPrologue extends ChapterBase {
 			copperFloodCorners: ASSETS.prologue.copperFloodCorners,
 			colophonText: ASSETS.prologue.colophonText,
 		});
+
+		// Preload copper flood video
+		const video = document.createElement("video");
+		video.src = ASSETS.prologue.copperFloodVideo;
+		video.loop = false;
+		video.muted = false;
+		video.playsInline = true;
+		video.preload = "auto";
+		video.style.display = "none";
+		document.body.appendChild(video);
+
+		video.onloadeddata = () => {
+			this.copperFloodVideoReady = true;
+			log.info("Copper flood video loaded");
+		};
+		video.onerror = () => {
+			log.warn("Copper flood video failed — falling back to PNGs");
+		};
+		video.load();
+		this.copperFloodVideo = video;
+
 		log.info("Prologue chapter initialized");
 	}
 
@@ -137,6 +160,13 @@ export class ChapterPrologue extends ChapterBase {
 		this.dragHandler.detach();
 		this.dragHandler.onDrag(() => {});
 		this.dragHandler.onDragEnd(() => {});
+
+		if (this.copperFloodVideo) {
+			this.copperFloodVideo.pause();
+			this.copperFloodVideo.remove();
+			this.copperFloodVideo = null;
+			this.copperFloodVideoReady = false;
+		}
 	}
 
 	/* ───────── Image helper ───────── */
@@ -275,7 +305,15 @@ export class ChapterPrologue extends ChapterBase {
 		this.frameTimer = 0;
 		this.particles.trigger("copperSplash", CX, CY);
 		eventBus.emit("bronze:sound", { soundId: "guDu" });
+		this.startCopperFloodVideo();
 		log.info("Prologue: FINGERPRINT → COPPER_FLOOD");
+	}
+
+	private startCopperFloodVideo(): void {
+		const v = this.copperFloodVideo;
+		if (!v || !this.copperFloodVideoReady) return;
+		v.currentTime = 0;
+		v.play().catch(() => {});
 	}
 
 	private advanceToComplete(): void {
@@ -889,104 +927,107 @@ export class ChapterPrologue extends ChapterBase {
 	/* ───────── Frame 3: Copper Flood ───────── */
 
 	private renderCopperFlood(ctx: CanvasRenderingContext2D): void {
-		const mapImg = this.getImg(ASSETS.prologue.map);
-		const floodImg =
-			this.getImg(ASSETS.prologue.copperFlood2) ||
-			this.getImg(ASSETS.prologue.copperFlood);
-		const cornersImg = this.getImg(ASSETS.prologue.copperFloodCorners);
+		const video = this.copperFloodVideo;
+		const useVideo =
+			video &&
+			this.copperFloodVideoReady &&
+			video.readyState >= 2 &&
+			!video.paused;
 
-		// Draw map background
-		if (mapImg) {
-			const bw = mapImg.width;
-			const bh = mapImg.height;
-			const bx = (CANVAS_WIDTH - bw) / 2;
-			const by = (CANVAS_HEIGHT - bh) / 2;
-			ctx.drawImage(mapImg, bx, by);
+		// ── Video path: draw full-screen seedance video ──
+		if (useVideo) {
+			ctx.drawImage(video, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 		} else {
-			drawPaperBackground(ctx, "#A0782C", 0.45);
-		}
+			// ── PNG fallback (original Canvas rendering) ──
+			const mapImg = this.getImg(ASSETS.prologue.map);
+			const floodImg =
+				this.getImg(ASSETS.prologue.copperFlood2) ||
+				this.getImg(ASSETS.prologue.copperFlood);
+			const cornersImg = this.getImg(ASSETS.prologue.copperFloodCorners);
 
-		// Copper flood corners (four-corner encroachment)
-		if (cornersImg) {
-			const p = this.copperProgress;
-			ctx.save();
-			ctx.globalAlpha = Math.min(1, p * 1.5);
-			ctx.drawImage(cornersImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-			ctx.restore();
-		}
+			if (mapImg) {
+				const bw = mapImg.width;
+				const bh = mapImg.height;
+				const bx = (CANVAS_WIDTH - bw) / 2;
+				const by = (CANVAS_HEIGHT - bh) / 2;
+				ctx.drawImage(mapImg, bx, by);
+			} else {
+				drawPaperBackground(ctx, "#A0782C", 0.45);
+			}
 
-		// Copper flood along the river line
-		if (floodImg) {
-			const p = this.copperProgress;
-			ctx.save();
-			ctx.globalAlpha = Math.min(1, p * 1.3);
-			ctx.drawImage(floodImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-			ctx.restore();
-		}
+			if (cornersImg) {
+				ctx.save();
+				ctx.globalAlpha = Math.min(1, this.copperProgress * 1.5);
+				ctx.drawImage(cornersImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+				ctx.restore();
+			}
 
-		// Fallback copper flood (procedural)
-		if (!floodImg && !cornersImg) {
-			const p = this.copperProgress;
-			const eased = p * p;
-			const dist = eased * Math.max(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.8;
+			if (floodImg) {
+				ctx.save();
+				ctx.globalAlpha = Math.min(1, this.copperProgress * 1.3);
+				ctx.drawImage(floodImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+				ctx.restore();
+			}
 
-			ctx.fillStyle = "#B87333";
-			// Top, Bottom, Left, Right panels
-			for (const [x1, y1, x2, y2, x3, y3, x4, y4] of [
-				[0, 0, CANVAS_WIDTH, 0, CANVAS_WIDTH - dist, dist, dist, dist],
-				[
-					0,
-					CANVAS_HEIGHT,
-					CANVAS_WIDTH,
-					CANVAS_HEIGHT,
-					CANVAS_WIDTH - dist,
-					CANVAS_HEIGHT - dist,
-					dist,
-					CANVAS_HEIGHT - dist,
-				],
-				[0, 0, dist, dist, dist, CANVAS_HEIGHT - dist, 0, CANVAS_HEIGHT],
-				[
-					CANVAS_WIDTH,
-					0,
-					CANVAS_WIDTH - dist,
-					dist,
-					CANVAS_WIDTH - dist,
-					CANVAS_HEIGHT - dist,
-					CANVAS_WIDTH,
-					CANVAS_HEIGHT,
-				],
-			] as const) {
-				ctx.beginPath();
-				ctx.moveTo(x1, y1);
-				ctx.lineTo(x2, y2);
-				ctx.lineTo(x3, y3);
-				ctx.lineTo(x4, y4);
-				ctx.closePath();
-				ctx.fill();
+			if (!floodImg && !cornersImg) {
+				const p = this.copperProgress;
+				const eased = p * p;
+				const dist = eased * Math.max(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.8;
+
+				ctx.fillStyle = "#B87333";
+				for (const [x1, y1, x2, y2, x3, y3, x4, y4] of [
+					[0, 0, CANVAS_WIDTH, 0, CANVAS_WIDTH - dist, dist, dist, dist],
+					[
+						0,
+						CANVAS_HEIGHT,
+						CANVAS_WIDTH,
+						CANVAS_HEIGHT,
+						CANVAS_WIDTH - dist,
+						CANVAS_HEIGHT - dist,
+						dist,
+						CANVAS_HEIGHT - dist,
+					],
+					[0, 0, dist, dist, dist, CANVAS_HEIGHT - dist, 0, CANVAS_HEIGHT],
+					[
+						CANVAS_WIDTH,
+						0,
+						CANVAS_WIDTH - dist,
+						dist,
+						CANVAS_WIDTH - dist,
+						CANVAS_HEIGHT - dist,
+						CANVAS_WIDTH,
+						CANVAS_HEIGHT,
+					],
+				] as const) {
+					ctx.beginPath();
+					ctx.moveTo(x1, y1);
+					ctx.lineTo(x2, y2);
+					ctx.lineTo(x3, y3);
+					ctx.lineTo(x4, y4);
+					ctx.closePath();
+					ctx.fill();
+				}
+			}
+
+			if (this.copperProgress > 0.2) {
+				const shimmer = 0.08 * Math.sin(performance.now() / 300);
+				ctx.fillStyle = `rgba(201,166,90,${shimmer})`;
+				ctx.fillRect(0, CANVAS_HEIGHT * 0.35, CANVAS_WIDTH, 3);
+			}
+
+			if (this.copperProgress > 0.4) {
+				ctx.save();
+				ctx.globalAlpha = Math.min(1, (this.copperProgress - 0.4) / 0.3);
+				ctx.fillStyle = "#C8A65A";
+				ctx.font = 'bold 48px "PingFang SC", "Noto Sans SC", serif';
+				ctx.textAlign = "center";
+				ctx.textBaseline = "middle";
+				ctx.fillText("铜液吞没", CX, CY);
+				ctx.restore();
 			}
 		}
 
-		// Shimmer (always drawn for subtle animation)
-		if (this.copperProgress > 0.2) {
-			const shimmer = 0.08 * Math.sin(performance.now() / 300);
-			ctx.fillStyle = `rgba(201,166,90,${shimmer})`;
-			ctx.fillRect(0, CANVAS_HEIGHT * 0.35, CANVAS_WIDTH, 3);
-		}
-
-		// Center text when flood has progressed
-		if (this.copperProgress > 0.4) {
-			const textAlpha = Math.min(1, (this.copperProgress - 0.4) / 0.3);
-			ctx.save();
-			ctx.globalAlpha = textAlpha;
-			ctx.fillStyle = "#C8A65A";
-			ctx.font = 'bold 48px "PingFang SC", "Noto Sans SC", serif';
-			ctx.textAlign = "center";
-			ctx.textBaseline = "middle";
-			ctx.fillText("铜液吞没", CX, CY);
-			ctx.restore();
-		}
-
-		// COMPLETE: fade to black
+		// COMPLETE: fade to black (always applies)
 		if (this.frame === PrologueFrame.COMPLETE) {
 			ctx.fillStyle = `rgba(0,0,0,${this.transitionAlpha})`;
 			ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);

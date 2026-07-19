@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-07-20 — Seedance 铜液吞没视频接入（首个 Tier1 视频资产）
+
+### 新增
+
+- **Seedance Tier1 视频集成**: `copper-flood.mp4` — 序章高潮段四角铜液合拢吞没地图动画，替换原有 PNG 逐帧渲染，支持 `onloadeddata`/`onerror` 回退至静态图
+- **`prologue_copper-flood.mp4`**: 序章资产替换文件库同步更新
+
+### 修改
+
+- **ChapterPrologue.ts**: 视频生命周期管理（createElement→preload→play→pause→remove），`renderCopperFlood()` 视频优先渲染（`readyState ≥ 2`）+ PNG 四角/河流路径回退链路
+- **AssetManifest.ts**: 新增 `copperFloodVideo` 路径引用
+
+### 验证
+
+| 检查项 | 结果 |
+|--------|:----:|
+| TypeScript 编译 | ✅ 零错误 |
+| 视频预加载 | ✅ `onloadeddata` 触发正常 |
+| 回退机制 | ✅ `onerror` → PNG 渲染 |
+
+---
+
 ## 2026-07-19b — 文字珠帘 CurtainColophon + 真实资产替换
 
 ### 新增
