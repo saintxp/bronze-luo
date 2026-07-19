@@ -115,6 +115,11 @@ class ChapterManager {
 		this.goToChapter(this.currentIndex + 1);
 	}
 
+	/** Debug: jump directly to chapter by array index */
+	skipTo(index: number): void {
+		this.goToChapter(index);
+	}
+
 	private goToChapter(index: number): void {
 		if (index >= this.chapters.length) {
 			log.info("All chapters complete — end of demo");
@@ -266,6 +271,16 @@ function init(): void {
 
 	// 6. Chapter manager
 	const chapterManager = new ChapterManager(chapters, canvasManager);
+
+	// ── Debug: window.__jumpTo(chapterIndex) for screenshot capture ──
+	(window as any).__jumpTo = (index: number) => {
+		startPage.classList.add("hidden");
+		hud.setInChapter(true);
+		chapterManager.skipTo(index);
+	};
+	(window as any).__chapterList = () => {
+		chapters.forEach((c, i) => console.log(`${i}: ${c.id}`));
+	};
 
 	// 6.5 HUD menu (stage-js) — pause menu / settings panel
 	const appEl = document.getElementById("app");
