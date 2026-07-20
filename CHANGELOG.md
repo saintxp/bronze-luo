@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-07-20b — BGM 系统集成（11 轨 + 章节自动切换）
+
+### 新增
+
+- **BGM 管理器**: `src/audio/BGMManager.ts` — 11 轨背景音乐系统，Web Audio API MediaElementSource 增益/淡入淡出，支持 play/pause/toggle/skip/select/crossfade(ms) 全生命周期
+- **BGM 轨道注册表**: `BGM_PLAYLIST` — 每轨含 id/name/chapter/path，以`封题`命名的 11 首曲目对应 11 章
+- **章节 BGM 映射**: `resolveChapterBgm()` — 每章自动匹配主题 BGM，相同曲目不重播
+- **深链接入**: `?chapter=N` URL 参数，可从 launcher.html 直接跳转指定章节并播放 BGM
+- **启动脚本**: `start.bat` / `start.cjs` — Node 启动器，自动打开 launcher 页面
+- **launcher.html**: 启动器页面（选关/设置入口）
+- **BGM 资产**: `public/assets/bgm/` 11 个 MP3 文件 + `资产替换文件库/BGM/` 源文件 + manifest
+
+### 修改
+
+- **main.ts**: BGMManager 集成（章节切换→BGM 自动交叉淡入淡出），深链 `?chapter=N` 参数解析，标题界面 BGM `fengTi` 播放，返回标题界面回退 BGM
+- **EventBus.ts**: 新增 `bgm:state` / `bgm:play` / `bgm:stop` 事件类型
+- **AssetManifest.ts**: 新增 11 轨 BGM 路径映射
+- **vite.config.ts**: 缩进统一，新增 `open: "/launcher.html"`，rollup 双入口（index.html + launcher.html）
+- **package.json**: 新增 `start` 脚本 + `@types/node` 依赖
+- **资产替换文件库/README.md**: 音频统计 14→25 轨（含 11 BGM），新增 BGM quick link
+
+### 验证
+
+| 检查项 | 结果 |
+|--------|:----:|
+| TypeScript 编译 | ✅ 零错误 |
+| 测试 | ✅ **70/70** 通过 |
+| 生产构建 | ✅ 双入口构建成功 |
+
+---
+
 ## 2026-07-20 — Seedance 铜液吞没视频接入（首个 Tier1 视频资产）
 
 ### 新增

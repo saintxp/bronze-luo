@@ -29,6 +29,7 @@ import { ChapterCaoWeiShiqi } from "./chapters/ChapterCaoWei_Shiqi";
 import { ChapterDemoEnd } from "./chapters/ChapterDemoEnd";
 import type { ChapterBase } from "./chapters/ChapterBase";
 import { initBronzeSounds } from "./audio/BronzeSound";
+import { BGMManager } from "./audio/BGMManager";
 import { StampEffect } from "./ui/StampEffect";
 import { DefinitionPopup } from "./ui/DefinitionPopup";
 import { VideoTrigger } from "./assets/VideoTrigger";
@@ -40,6 +41,37 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./utils/constants";
 import { getCachedPaperTexture } from "./ui/InkPaintingUtils";
 import { CurtainColophon } from "./ui/CurtainColophon";
 import { getChapterCopy } from "./data/chapterCopy";
+
+/* ───────── BGM mapping (module-scope — used by ChapterManager) ───────── */
+
+let _bgm: BGMManager | null = null;
+
+function resolveChapterBgm(chapterId: string): string {
+	const map: Record<string, string> = {
+		tutorial: "zhiChu",
+		prologue: "ceQi",
+		erlitou: "zhuHuo",
+		grey: "xuanZhi",
+		zhou: "liXu",
+		"donghan-zili": "xingYe",
+		"donghan-diting": "xingYe",
+		"donghan-zhicheng": "xingYe",
+		"donghan-tuo": "xingYe",
+		"caowei-jincheng": "jinYu",
+		"caowei-shiqi": "jinYu",
+		"demo-end": "heCe",
+	};
+	return map[chapterId] || "fengTi";
+}
+
+function playChapterBgm(chapterId: string): void {
+	if (!_bgm) return;
+	const bgmId = resolveChapterBgm(chapterId);
+	// Same BGM already playing — don't restart
+	if (_bgm.currentTrack?.id === bgmId) return;
+	log.info(`BGM → ${bgmId} (chapter: ${chapterId})`);
+	_bgm.crossfade(bgmId, 1200);
+}
 
 /* ───────── Chapter ID → Copy ID mapping ───────── */
 
@@ -199,6 +231,9 @@ class ChapterManager {
 		chapter.init();
 		chapter.enter();
 
+		// BGM: switch to chapter theme
+		playChapterBgm(chapter.id);
+
 		log.info(
 			`Switched to chapter: ${chapter.id} (${index + 1}/${this.chapters.length})`,
 		);
@@ -283,6 +318,10 @@ function init(): void {
 
 	// 3. Audio
 	initBronzeSounds();
+
+	// 3.5 BGM — assign module-scope singleton
+	_bgm = BGMManager.instance;
+	(window as any).__bgmManager = _bgm;
 
 	// 4. UI overlays
 	const stampEffect = new StampEffect(canvasManager);
@@ -385,7 +424,29 @@ function init(): void {
 		startPage.classList.remove("hidden");
 		hud.close();
 		hud.setInChapter(false);
+		// BGM: back to title theme
+		_bgm!.crossfade("fengTi", 1200);
 	});
+
+	// 7.5 URL param: ?chapter=N — deep-link from launcher
+	const params = new URLSearchParams(window.location.search);
+	const chapterParam = params.get("chapter");
+	if (chapterParam !== null) {
+		const idx = Number(chapterParam);
+		if (Number.isInteger(idx) && idx >= 0 && idx < chapters.length) {
+			log.info(`Deep-link: jumping to chapter index ${idx}`);
+			startPage.classList.add("hidden");
+			hud.setInChapter(true);
+			// BGM: play chapter theme (no crossfade — first track)
+			const chId = chapters[idx].id;
+			const bgmId = resolveChapterBgm(chId);
+			_bgm!.play(bgmId);
+			chapterManager.skipTo(idx);
+		}
+	} else {
+		// Normal start — play title BGM on page load
+		_bgm!.play("fengTi");
+	}
 
 	// 8. Game loop
 	let lastTime = performance.now();

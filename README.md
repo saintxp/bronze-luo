@@ -16,11 +16,11 @@
 ## 开发进度
 
 ```
-最新提交: 7faf106 — docs: update latest commit hash in README
+最新提交: fab445e — feat: Seedance Tier1 铜液吞没视频接入序章
 当前阶段: Phase 4 — 北魏 → 隋唐 → 尾声   ← 你在这里
 下一阶段: Phase 5 — 打磨 + 测试 + 发布
 
-> ⚡ 正在进行：Seedance Tier1 铜液吞没视频接入
+> ⚡ 正在进行：BGM 系统集成（11 轨全生命周期）
 ```
 
 | 阶段 | 内容 | 工时 | 里程碑 | 状态 |
@@ -36,9 +36,9 @@
 
 | 日期 | 提交 | 内容 |
 |---|---|---|
+| 2026-07-20 | — | 🎵 **BGM 系统集成** — 11 轨全生命周期（play/pause/crossfade）+ 章节自动切换 |
 | 2026-07-20 | — | 🎬 **首个 Seedance Tier1 视频接入** — 序章铜液吞没 (`copper-flood.mp4`) |
 | 2026-07-19 | — | 🏗️ 文字珠帘 CurtainColophon + 序章/教学关真实资产替换 + 物理珠帘系统 |
-| 2026-07-19 | — | 🏗️ 资产替换工作流 + 粒子题词系统 + 章节文案数据 + 调试 API |
 | 2026-07-19 | `e973db0` | 🏆 **Phase 3 东汉·曹魏 6 章完成** (70 tests, 367KB) |
 | 2026-07-18 | `aca8619` | 🎵 BGM 计划 + 资产工作流 v2 + 视频抠像规范 |
 | 2026-07-18 | `d42227e` | ✨ 纸纹过渡动画 + 灰页 WebGL 玻璃光晕 |
@@ -106,9 +106,12 @@
 ├── README.md                       # 本文件
 ├── CLAUDE.md                       # AI 协作配置 + 设计规范
 ├── index.html                      # 入口 HTML
+├── launcher.html                   # 🚀 启动器（选关/设置入口）
 ├── package.json                    # 依赖管理
 ├── tsconfig.json                   # TypeScript 配置
 ├── vite.config.ts                  # Vite 构建配置
+├── start.bat                       # 🚀 启动脚本（Windows）
+├── start.cjs                       # 🚀 启动脚本（Node）
 │
 ├── CHANGELOG.md                    # 📝 版本日志
 ├── 工作提示词_章节文案粒子系统.md     # 📄 文案 + 粒子系统 AI 提示词
@@ -165,6 +168,7 @@
     │   └── ChapterDemoEnd.ts       #   演示结束画面
     ├── audio/                      # 音频层
     │   ├── AudioManager.ts         #   Web Audio API 封装
+    │   ├── BGMManager.ts           #   11 轨 BGM（play/pause/crossfade）
     │   └── BronzeSound.ts          #   11 青铜音触发
     ├── state/                      # 状态层
     │   └── GameState.ts            #   全局状态 + 事件总线
@@ -204,10 +208,10 @@
 | 拼接谜题 | 12（7 P0 + 4 P1）+ 3 教学关 |
 | 关键帧 | 51（45 正式 + 6 教学）⭐ 硬性上限 |
 | VFX 动画 | ~66s（16 段 AI 视频） |
-| 静态图 + 音效 | ~235 张 + 14 音效 |
+| 静态图 + 音效 | ~235 张 + 25 音频（14 音效 + 11 BGM） |
 | 角色 | 18 位（全部"侧写不告"） |
 | 青铜音 | 11 声 |
-| 源文件 | 43 TypeScript 模块 |
+| 源文件 | 44 TypeScript 模块 |
 | 单元测试 | 70（34 原有 + 36 Phase 3）✅ 全部通过 |
 | 构建产物 | ~367KB（gzip 106KB） |
 

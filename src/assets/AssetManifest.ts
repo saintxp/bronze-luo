@@ -227,6 +227,20 @@ export const ASSETS = {
 		peonyBloom: assetPath("videos", "peony-bloom.mp4"), // 归田 2.5s
 		goddessScatter: assetPath("videos", "goddess-scatter.mp4"), // 尾声 4s
 	},
+	/* ───────── BGM (11 tracks) ───────── */
+	bgm: {
+		fengTi: assetPath("bgm", "bgm_00_fengTi_titleScreen.mp3"),
+		zhiChu: assetPath("bgm", "bgm_01_zhiChu_tutorialTouch.mp3"),
+		ceQi: assetPath("bgm", "bgm_02_ceQi_prologueOpen.mp3"),
+		zhuHuo: assetPath("bgm", "bgm_03_zhuHuo_erlitouCasting.mp3"),
+		xuanZhi: assetPath("bgm", "bgm_04_xuanZhi_greySuspended.mp3"),
+		liXu: assetPath("bgm", "bgm_05_liXu_zhouRitual.mp3"),
+		xingYe: assetPath("bgm", "bgm_06_xingYe_hanStarryNight.mp3"),
+		jinYu: assetPath("bgm", "bgm_07_jinYu_caoWeiEmbers.mp3"),
+		jingQian: assetPath("bgm", "bgm_08_jingQian_weiMirrorMigration.mp3"),
+		shengJi: assetPath("bgm", "bgm_09_shengJi_tangProsperity.mp3"),
+		heCe: assetPath("bgm", "bgm_10_heCe_epilogueClosure.mp3"),
+	},
 } as const;
 
 /**

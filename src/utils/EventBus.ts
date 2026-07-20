@@ -14,6 +14,15 @@ interface EventMap {
 	"drag:move": { x: number; y: number; dx: number; dy: number };
 	"drag:end": { x: number; y: number };
 	"bronze:sound": { soundId: string };
+	"bgm:state": {
+		playing: boolean;
+		trackId: string;
+		volume: number;
+		muted: boolean;
+		trackName: string;
+	};
+	"bgm:play": { bgmId: string };
+	"bgm:stop": null;
 	"scene:transition": { from: string; to: string };
 	"tutorial:step": { step: number; label: string };
 	"chapter:complete": { chapterId: string };
